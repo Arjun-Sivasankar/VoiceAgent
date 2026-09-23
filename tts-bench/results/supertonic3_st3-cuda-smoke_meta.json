@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-09-12T06:17:44.637903+00:00",
+  "tag": "st3-cuda-smoke",
+  "provider": "cuda",
+  "threads": 0,
+  "python": "3.12.9",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "supertonic": "1.3.1",
+  "onnxruntime": "1.22.0",
+  "ort_providers_available": [
+    "TensorrtExecutionProvider",
+    "CUDAExecutionProvider",
+    "CPUExecutionProvider"
+  ],
+  "ram_gb": 15.7,
+  "model_load_s": 5.783,
+  "ort_session_providers": [
+    "CUDAExecutionProvider",
+    "CPUExecutionProvider"
+  ],
+  "sample_rate": 44100,
+  "voice_styles": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5"
+  ],
+  "vram_after_load_mb": 851.1,
+  "status": "ok"
+}

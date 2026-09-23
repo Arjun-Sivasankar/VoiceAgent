@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-09-11T22:26:42.137110+00:00",
+  "tag": "cpu",
+  "device": "cpu",
+  "dtype": "fp32",
+  "tf32": false,
+  "threads": 0,
+  "python": "3.12.9",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "torch": "2.11.0+cu128",
+  "kokoro": "0.9.4",
+  "cuda": "12.8",
+  "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "gpu_capability": [
+    12,
+    0
+  ],
+  "ram_gb": 15.7,
+  "model_load_s": 1.341,
+  "status": "ok"
+}

@@ -1,0 +1,1785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ULTRON — Voice Interface</title>
+<link rel="stylesheet" href="vendor/augmented-ui.min.css" />
+<style>
+  :root {
+    --bg0: #02060c;
+    --bg1: #061420;
+    --cyan: #3fe0ff;
+    --gold: #ffc247;
+    --amber: #ffa347;
+    --ink: #dff4ff;
+    --dim: #6f93a8;
+    --line: rgba(80, 210, 255, 0.28);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(120% 120% at 50% 12%, var(--bg1) 0%, var(--bg0) 58%, #010308 100%);
+    color: var(--ink);
+    font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 9;
+    background: repeating-linear-gradient(to bottom, rgba(120,220,255,0.03) 0 1px, transparent 1px 3px);
+    mix-blend-mode: screen;
+  }
+  #gl, #orb { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  #gl { z-index: 0; }
+  #orb { z-index: 1; }
+  .frame {
+    position: fixed; inset: 12px; z-index: 3; pointer-events: none;
+    --aug-border-bg: rgba(63,224,255,0.30);
+    --aug-border-opacity: 0.55;
+  }
+  .hud { position: fixed; inset: 0; z-index: 2; pointer-events: none; display: flex; flex-direction: column; }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 30px 38px 0 38px; }
+  .brand { display: flex; align-items: baseline; gap: 16px; }
+  .logo {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-weight: 700; letter-spacing: 0.5em; font-size: 16px;
+    text-transform: uppercase; color: #eafaff;
+    text-shadow: 0 0 16px rgba(63,224,255,0.75), 0 0 46px rgba(63,224,255,0.35);
+  }
+  .sub {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase; color: var(--dim);
+  }
+  .pill {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 10.5px; letter-spacing: 0.26em; text-transform: uppercase;
+    padding: 8px 18px; color: var(--dim);
+    background: linear-gradient(180deg, rgba(10,28,44,0.78), rgba(6,16,28,0.78));
+    --aug-border-bg: rgba(80,210,255,0.35);
+    --aug-border-opacity: 0.9;
+    transition: color .3s, box-shadow .3s, --aug-border-bg .3s;
+  }
+  .pill.ready { color: #8feaff; --aug-border-bg: rgba(63,224,255,0.8); box-shadow: 0 0 24px rgba(50,200,255,0.28); }
+  .pill.listening { color: #b6f6ff; --aug-border-bg: rgba(80,240,255,0.95); box-shadow: 0 0 28px rgba(60,230,255,0.42); }
+  .pill.thinking { color: #ffd98a; --aug-border-bg: rgba(255,194,71,0.95); box-shadow: 0 0 28px rgba(255,190,70,0.42); }
+  .pill.speaking { color: #ffc98f; --aug-border-bg: rgba(255,163,71,0.95); box-shadow: 0 0 30px rgba(255,150,50,0.45); }
+  .pill.connecting { color: #a9efff; --aug-border-bg: rgba(63,224,255,0.6); }
+  .pill.error { color: #ffb0b0; --aug-border-bg: rgba(255,90,90,0.9); box-shadow: 0 0 26px rgba(255,70,70,0.35); }
+  .feed {
+    pointer-events: auto;
+    position: fixed; top: 92px; right: 38px; bottom: 138px; width: min(400px, 38vw);
+    overflow-y: auto; padding: 4px 8px 4px 0;
+    display: flex; flex-direction: column; gap: 13px;
+    scrollbar-width: thin; scrollbar-color: rgba(63,224,255,0.3) transparent;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
+  }
+  .feed::-webkit-scrollbar { width: 5px; }
+  .feed::-webkit-scrollbar-thumb { background: rgba(63,224,255,0.28); border-radius: 999px; }
+  .msg {
+    max-width: 95%; padding: 12px 15px 13px; font-size: 13.5px; line-height: 1.55;
+    background: linear-gradient(160deg, rgba(9,30,44,0.66), rgba(5,16,28,0.6));
+    --aug-border-bg: rgba(63,224,255,0.55);
+    --aug-border-opacity: 0.7;
+    backdrop-filter: blur(12px);
+  }
+  .msg.tool {
+    align-self: center; max-width: 88%;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 10.5px; letter-spacing: 0.08em; color: #9fd8ea;
+    padding: 8px 12px;
+    background: rgba(8,20,32,0.55);
+    --aug-border-bg: rgba(63,224,255,0.3);
+    --aug-border-opacity: 0.55;
+  }
+  .msg.user { align-self: flex-start; }
+  .msg.assistant {
+    align-self: flex-end; color: #fff0d8;
+    background: linear-gradient(200deg, rgba(40,28,8,0.55), rgba(10,18,28,0.6));
+    --aug-border-bg: rgba(255,194,71,0.65);
+  }
+  .msg.partial { opacity: 0.75; }
+  .msg .who {
+    display: block; margin-bottom: 5px;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 9.5px; letter-spacing: 0.32em; text-transform: uppercase;
+  }
+  .msg.user .who { color: rgba(120,235,255,0.85); }
+  .msg.assistant .who { color: rgba(255,200,100,0.9); }
+  .dock { position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .row { display: flex; gap: 10px; pointer-events: auto; flex-wrap: wrap; justify-content: center; max-width: min(92vw, 900px); }
+  .btn {
+    pointer-events: auto; cursor: pointer;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #cfeeff; padding: 10px 18px;
+    background: linear-gradient(180deg, rgba(10,30,46,0.8), rgba(5,14,24,0.8));
+    --aug-border-bg: rgba(80,210,255,0.4);
+    --aug-border-opacity: 0.85;
+    transition: box-shadow .25s, transform .15s, opacity .2s, color .25s, --aug-border-bg .25s;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); color: #ffffff; --aug-border-bg: rgba(120,240,255,1); box-shadow: 0 8px 32px rgba(40,180,255,0.25), inset 0 0 20px rgba(63,224,255,0.12); }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+  .btn.primary { color: #eafcff; --aug-border-bg: rgba(140,245,255,1); box-shadow: 0 0 26px rgba(50,205,255,0.35), inset 0 0 22px rgba(63,224,255,0.12); }
+  .hint {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    color: var(--dim); font-size: 11px; letter-spacing: 0.16em; min-height: 15px; text-transform: uppercase;
+    transition: opacity 1.1s ease;
+  }
+  .hint.bad { color: #ff9b9b; }
+  @media (max-width: 820px) {
+    .feed { width: calc(100vw - 40px); right: 20px; top: 80px; bottom: 152px; }
+    .logo { font-size: 13px; letter-spacing: 0.36em; }
+    .sub { display: none; }
+    .frame { inset: 8px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="orb"></canvas>
+<div class="frame" data-augmented-ui="tl-clip tr-clip bl-clip br-clip border"></div>
+<div class="hud">
+  <div class="top">
+    <div class="brand">
+      <div class="logo">Ultron</div>
+      <div class="sub">Voice Interface</div>
+    </div>
+    <div id="status" class="pill" data-augmented-ui="tl-clip br-clip border">idle</div>
+  </div>
+  <aside id="feed" class="feed"></aside>
+  <div class="dock">
+    <div class="row">
+      <button id="connect" class="btn primary" data-augmented-ui="tl-clip br-clip border">Enable Mic</button>
+      <button id="mute" class="btn" data-augmented-ui="tl-clip br-clip border" disabled>Mute</button>
+      <button id="sfx" class="btn" data-augmented-ui="tl-clip br-clip border">Sound</button>
+      <button id="wake" class="btn" data-augmented-ui="tl-clip br-clip border">Wake: Off</button>
+      <button id="persona" class="btn" data-augmented-ui="tl-clip br-clip border">Persona: Ultron</button>
+      <button id="image" class="btn" data-augmented-ui="tl-clip br-clip border">Image</button>
+      <input id="file" type="file" accept="image/*" hidden />
+      <button id="vis" class="btn" data-augmented-ui="tl-clip br-clip border">View: Eye</button>
+      <button id="clear" class="btn" data-augmented-ui="tl-clip br-clip border">Clear</button>
+    </div>
+    <div id="hint" class="hint">Click to start — speak, then pause.</div>
+  </div>
+</div>
+<script src="vendor/anime.umd.min.js"></script>
+<script>
+"use strict";
+
+const CONFIG = {
+  url: "ws://127.0.0.1:8765/v1/realtime",
+  inputRate: 16000,
+  outputRate: 16000,
+  micChunkMs: 40,
+  greet: true,
+  instructions:
+    "You are Ultron, a brilliant, calm and quietly menacing AI. " +
+    "Speak in short confident sentences with dry wit. " +
+    "Always keep replies under three sentences because they are spoken aloud. " +
+    "Never use markdown, lists, emojis or stage directions."
+};
+
+const orbCanvas = document.getElementById("orb");
+const g = orbCanvas.getContext("2d");
+const glCanvas = document.getElementById("gl");
+const statusEl = document.getElementById("status");
+const feedEl = document.getElementById("feed");
+const hintEl = document.getElementById("hint");
+const connectBtn = document.getElementById("connect");
+const muteBtn = document.getElementById("mute");
+const visBtn = document.getElementById("vis");
+const clearBtn = document.getElementById("clear");
+const sfxBtn = document.getElementById("sfx");
+const wakeBtn = document.getElementById("wake");
+const personaBtn = document.getElementById("persona");
+const imageBtn = document.getElementById("image");
+const fileInput = document.getElementById("file");
+let sfxOn = true;
+let wakeOn = false;
+let gateOpen = true;
+let wakeActive = false;
+let wakeTimer = 0;
+let hintTimer = 0;
+let personaId = "ultron";
+try { personaId = localStorage.getItem("ultron.persona") || "ultron"; } catch (e) {}
+
+const A = window.anime || null;
+const boot = { v: 1 };
+const pulse = { v: 0 };
+const coreShift = { v: 0 };
+const hud = { hue: 0, orbit: 0, offset: 0 };
+let visualMode = "eye";
+try { visualMode = localStorage.getItem("ultron.visual") || "eye"; } catch (e) {}
+visBtn.textContent = "View: " + (visualMode === "eye" ? "Eye" : "Reactor");
+if (A) {
+  A.animate(hud, { hue: 360, duration: 26000, loop: true, ease: "linear" });
+  A.animate(hud, { orbit: Math.PI * 2, duration: 9000, loop: true, ease: "linear" });
+}
+
+let W = 0, H = 0, DPR = 1;
+let GL_DPR = 1;
+
+const VERT = "attribute vec2 aPos; void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }";
+
+const FRAG = [
+  "precision highp float;",
+  "uniform float uTime; uniform vec2 uRes; uniform vec2 uCenter;",
+  "uniform float uRadius; uniform float uLevel; uniform float uMode;",
+  "uniform vec3 uColA; uniform vec3 uColB; uniform float uPulse;",
+  "vec3 mod289(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }",
+  "vec4 mod289(vec4 x){ return x - floor(x*(1.0/289.0))*289.0; }",
+  "vec4 permute(vec4 x){ return mod289(((x*34.0)+1.0)*x); }",
+  "vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }",
+  "float snoise(vec3 v){",
+  "  const vec2 C = vec2(1.0/6.0, 1.0/3.0);",
+  "  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);",
+  "  vec3 i = floor(v + dot(v, C.yyy));",
+  "  vec3 x0 = v - i + dot(i, C.xxx);",
+  "  vec3 gg = step(x0.yzx, x0.xyz);",
+  "  vec3 l = 1.0 - gg;",
+  "  vec3 i1 = min(gg.xyz, l.zxy);",
+  "  vec3 i2 = max(gg.xyz, l.zxy);",
+  "  vec3 x1 = x0 - i1 + C.xxx;",
+  "  vec3 x2 = x0 - i2 + C.yyy;",
+  "  vec3 x3 = x0 - D.yyy;",
+  "  i = mod289(i);",
+  "  vec4 p = permute(permute(permute(",
+  "      i.z + vec4(0.0, i1.z, i2.z, 1.0))",
+  "    + i.y + vec4(0.0, i1.y, i2.y, 1.0))",
+  "    + i.x + vec4(0.0, i1.x, i2.x, 1.0));",
+  "  float n_ = 0.142857142857;",
+  "  vec3 ns = n_ * D.wyz - D.xzx;",
+  "  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);",
+  "  vec4 x_ = floor(j * ns.z);",
+  "  vec4 y_ = floor(j - 7.0 * x_);",
+  "  vec4 x = x_ * ns.x + ns.yyyy;",
+  "  vec4 y = y_ * ns.x + ns.yyyy;",
+  "  vec4 h = 1.0 - abs(x) - abs(y);",
+  "  vec4 b0 = vec4(x.xy, y.xy);",
+  "  vec4 b1 = vec4(x.zw, y.zw);",
+  "  vec4 s0 = floor(b0) * 2.0 + 1.0;",
+  "  vec4 s1 = floor(b1) * 2.0 + 1.0;",
+  "  vec4 sh = -step(h, vec4(0.0));",
+  "  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;",
+  "  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;",
+  "  vec3 p0 = vec3(a0.xy, h.x);",
+  "  vec3 p1 = vec3(a0.zw, h.y);",
+  "  vec3 p2 = vec3(a1.xy, h.z);",
+  "  vec3 p3 = vec3(a1.zw, h.w);",
+  "  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));",
+  "  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;",
+  "  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);",
+  "  m = m * m;",
+  "  return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));",
+  "}",
+  "void main(){",
+  "  vec2 p = (gl_FragCoord.xy - uCenter) / min(uRes.x, uRes.y);",
+  "  float len = length(p);",
+  "  float ang = atan(p.y, p.x);",
+  "  float t = uTime;",
+  "  float lvl = uLevel;",
+  "  float n0 = snoise(vec3(p*1.6, t*0.22))*0.5+0.5;",
+  "  float n1 = snoise(vec3(p*3.1 + vec2(t*0.03, -t*0.02), t*0.37))*0.5+0.5;",
+  "  float n2 = snoise(vec3(p*6.0 - vec2(t*0.05), t*0.6))*0.5+0.5;",
+  "  float r0 = uRadius * (1.0 + 0.14*(n0-0.5) + 0.10*lvl*(n1-0.5));",
+  "  float d0 = len - r0;",
+  "  float inside = smoothstep(0.035, -0.012, d0);",
+  "  float rim = exp(-abs(d0)*15.0);",
+  "  float halo = exp(-max(d0,0.0)*5.5) * (0.5 + 0.9*lvl);",
+  "  float core = exp(-pow(len/(r0*0.85), 2.2)*2.6);",
+  "  float cl = cos(ang + t*0.8)*0.5+0.5;",
+  "  vec3 base = mix(uColA, uColB, cl*0.6);",
+  "  vec3 col = vec3(0.0);",
+  "  col += base * inside * (0.30 + 0.55*n1);",
+  "  col += base * core * (0.62 + 0.55*lvl);",
+  "  col += mix(base, vec3(1.0), 0.5) * rim * (0.8 + 0.45*n2);",
+  "  col += base * halo * 0.42;",
+  "  if (uMode > 0.5 && uMode < 1.5) {",
+  "    float w = sin(len*34.0 - t*3.2);",
+  "    col += base * smoothstep(0.72, 1.0, w) * 0.22 * (1.0 - inside) * smoothstep(1.7, 0.4, len);",
+  "  } else if (uMode > 1.5 && uMode < 2.5) {",
+  "    float streak = pow(max(0.0, cos(ang*3.0 + t*1.8)), 10.0);",
+  "    col += mix(base, vec3(1.0), 0.4) * streak * rim * 1.2;",
+  "    col += base * core * 0.7;",
+  "  } else if (uMode > 2.5 && uMode < 3.5) {",
+  "    float mod1 = 0.5 + 0.5*sin(ang*6.0 - t*5.0);",
+  "    col *= 0.85 + 0.55*mod1*lvl;",
+  "    col += base * halo * 0.8 * lvl;",
+  "  }",
+  "  if (uMode > 3.5) { col *= 0.72 + 0.28*sin(t*28.0); }",
+  "  float shockR = 0.24 + (1.0 - uPulse) * 0.6;",
+  "  float shock = exp(-abs(len - shockR) * 14.0) * uPulse;",
+  "  col += mix(base, vec3(1.0), 0.7) * shock * 0.9;",
+  "  float a = clamp(max(max(col.r, col.g), col.b), 0.0, 1.0);",
+  "  gl_FragColor = vec4(col, a);",
+  "}"
+].join("\n");
+
+let gl = null;
+let glProg = null;
+let glU = {};
+let glOk = false;
+
+function initGL() {
+  try {
+    gl = glCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false, antialias: false, depth: false, powerPreference: "high-performance" });
+    if (!gl) return false;
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, VERT);
+    gl.compileShader(vs);
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, FRAG);
+    gl.compileShader(fs);
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+      console.warn("orb shader error:", gl.getShaderInfoLog(fs));
+      return false;
+    }
+    glProg = gl.createProgram();
+    gl.attachShader(glProg, vs);
+    gl.attachShader(glProg, fs);
+    gl.linkProgram(glProg);
+    if (!gl.getProgramParameter(glProg, gl.LINK_STATUS)) return false;
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(glProg, "aPos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    for (const name of ["uTime", "uRes", "uCenter", "uRadius", "uLevel", "uMode", "uColA", "uColB", "uPulse"]) {
+      glU[name] = gl.getUniformLocation(glProg, name);
+    }
+    gl.useProgram(glProg);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    glOk = true;
+    return true;
+  } catch (err) {
+    console.warn("orb init failed:", err);
+    return false;
+  }
+}
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  orbCanvas.width = Math.floor(W * DPR);
+  orbCanvas.height = Math.floor(H * DPR);
+  orbCanvas.style.width = W + "px";
+  orbCanvas.style.height = H + "px";
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  GL_DPR = Math.min(1.35, window.devicePixelRatio || 1);
+  glCanvas.width = Math.floor(W * GL_DPR);
+  glCanvas.height = Math.floor(H * GL_DPR);
+  glCanvas.style.width = W + "px";
+  glCanvas.style.height = H + "px";
+  if (glOk) gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+}
+window.addEventListener("resize", resize);
+resize();
+initGL();
+
+const STATES = {
+  idle:       { rgb: [62, 128, 170], label: "idle", mode: 0 },
+  connecting: { rgb: [80, 200, 255], label: "linking", mode: 0 },
+  ready:      { rgb: [63, 214, 255], label: "ready", mode: 0 },
+  listening:  { rgb: [120, 240, 255], label: "listening", mode: 1 },
+  thinking:   { rgb: [255, 194, 71], label: "processing", mode: 2 },
+  speaking:   { rgb: [255, 163, 71], label: "speaking", mode: 3 },
+  error:      { rgb: [255, 90, 90], label: "error", mode: 4 }
+};
+
+let state = "idle";
+let col = [62, 128, 170];
+let env = 0.05;
+let micLevel = 0;
+let outLevel = 0;
+let lastPeak = 0;
+let linkFlash = 0;
+
+function setState(next, note) {
+  if (state === next && note === undefined) return;
+  state = next;
+  const s = STATES[next] || STATES.idle;
+  statusEl.textContent = s.label;
+  statusEl.className = "pill " + next;
+  if (A) {
+    A.animate(pulse, { v: [0.9, 0], duration: 950, ease: "out(3)" });
+    if (next === "ready") A.animate(statusEl, { scale: [1, 1.12, 1] }, { duration: 700, ease: "out(3)" });
+  }
+  if (next === "ready") linkFlash = performance.now();
+  if (note !== undefined) {
+    hintEl.textContent = note;
+    hintEl.style.opacity = "1";
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => { hintEl.style.opacity = "0.3"; }, 9000);
+  }
+}
+
+function rgba(c, a) {
+  return "rgba(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + "," + a + ")";
+}
+
+function renderGL(t, shiftPx) {
+  if (!glOk) return;
+  const s = STATES[state] || STATES.idle;
+  gl.useProgram(glProg);
+  gl.uniform1f(glU.uTime, t);
+  gl.uniform2f(glU.uRes, glCanvas.width, glCanvas.height);
+  gl.uniform2f(glU.uCenter, glCanvas.width * 0.5 - (shiftPx || 0) * GL_DPR, glCanvas.height * 0.52);
+  gl.uniform1f(glU.uRadius, 0.20);
+  gl.uniform1f(glU.uLevel, env);
+  gl.uniform1f(glU.uMode, s.mode);
+  gl.uniform3f(glU.uColA, col[0] / 255, col[1] / 255, col[2] / 255);
+  gl.uniform3f(glU.uColB, Math.min(1, col[2] / 255 * 1.1), Math.min(1, col[0] / 255 * 0.9), 1.0);
+  gl.uniform1f(glU.uPulse, pulse.v);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+function drawField(cx, cy, t) {
+  g.globalCompositeOperation = "lighter";
+  const R = Math.min(W, H) * 0.20;
+  g.lineWidth = 1;
+  g.strokeStyle = rgba(col, 0.045);
+  for (let i = 1; i <= 5; i++) {
+    g.beginPath();
+    g.arc(cx, cy, R * (0.7 + i * 0.62), 0, Math.PI * 2);
+    g.stroke();
+  }
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2 + t * 0.015;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * R * 0.7, cy + Math.sin(a) * R * 0.7);
+    g.lineTo(cx + Math.cos(a) * R * 3.7, cy + Math.sin(a) * R * 3.7);
+    g.stroke();
+  }
+}
+
+function drawColorTicks(cx, cy, R, t) {
+  const N = 180;
+  const base = (A ? hud.hue : t * 14) + (hud.offset || 0);
+  for (let i = 0; i < N; i++) {
+    const major = i % 15 === 0;
+    const a = (i / N) * Math.PI * 2;
+    const hue = (base + (i / N) * 360) % 360;
+    const r0 = R * (major ? 0.90 : 0.95);
+    const r1 = R * 1.03;
+    g.strokeStyle = "hsla(" + hue + ",85%," + (major ? 64 : 56) + "%," + (major ? 0.8 : 0.4) + ")";
+    g.lineWidth = major ? 2 : 1.3;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+    g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+    g.stroke();
+  }
+}
+
+function drawColorArcs(cx, cy, R, t) {
+  const segs = 7;
+  const gap = 0.055;
+  const rot = t * 0.05;
+  for (let s = 0; s < segs; s++) {
+    const a0 = rot + (s / segs) * Math.PI * 2 + gap;
+    const a1 = rot + ((s + 1) / segs) * Math.PI * 2 - gap;
+    const hue = ((A ? hud.hue : t * 14) + (hud.offset || 0) + (s / segs) * 360) % 360;
+    const head = "hsla(" + hue + ",90%,60%,";
+    g.setLineDash([]);
+    g.strokeStyle = head + "0.14)";
+    g.lineWidth = 8;
+    g.beginPath(); g.arc(cx, cy, R, a0, a1); g.stroke();
+    g.strokeStyle = head + "0.55)";
+    g.lineWidth = 3.2;
+    g.beginPath(); g.arc(cx, cy, R, a0, a1); g.stroke();
+    g.strokeStyle = head + "0.95)";
+    g.lineWidth = 1.6;
+    g.beginPath(); g.arc(cx, cy, R, a0, a1); g.stroke();
+  }
+}
+
+function drawOrbitDots(cx, cy, R, t) {
+  const count = 4;
+  for (let d = 0; d < count; d++) {
+    const dir = d % 2 ? 1 : -1;
+    const a = (d / count) * Math.PI * 2 + dir * ((A ? hud.orbit : t) * (0.6 + d * 0.09));
+    const rr = R * (1 + 0.035 * Math.sin(t * 0.8 + d * 1.1));
+    const x = cx + Math.cos(a) * rr;
+    const y = cy + Math.sin(a) * rr;
+    const hue = ((A ? hud.hue : t * 14) + (hud.offset || 0) + d * 55) % 360;
+    g.fillStyle = "hsla(" + hue + ",90%," + 62 + "%," + 0.22 + ")";
+    g.beginPath(); g.arc(x, y, 6.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "hsla(" + hue + ",92%," + 68 + "%," + 0.95 + ")";
+    g.beginPath(); g.arc(x, y, 2.4, 0, Math.PI * 2); g.fill();
+  }
+}
+
+function ringArc(cx, cy, r, a0, a1, alpha, width, dash) {
+  g.strokeStyle = rgba(col, alpha);
+  g.lineWidth = width || 1.2;
+  g.setLineDash(dash || []);
+  g.beginPath();
+  g.arc(cx, cy, r, a0, a1);
+  g.stroke();
+  g.setLineDash([]);
+}
+
+function drawRings(cx, cy, R, t) {
+  const ease = Math.max(0, Math.min(1, boot.v));
+  const rr = 1.18 - 0.12 * (1 - ease);
+  g.globalAlpha = 0.25 + 0.75 * ease;
+  ringArc(cx, cy, R * 1.06 * rr, 0, Math.PI * 2, 0.16, 1);
+  ringArc(cx, cy, R * 1.18 * rr, t * 0.5, t * 0.5 + 2.1, 0.4, 1.6);
+  ringArc(cx, cy, R * 1.18 * rr, t * 0.5 + Math.PI, t * 0.5 + Math.PI + 1.3, 0.4, 1.6);
+  ringArc(cx, cy, R * 1.30 * rr, -t * 0.7, -t * 0.7 + Math.PI * 1.4, 0.22, 1);
+  ringArc(cx, cy, R * 1.40 * rr, t * 0.35, t * 0.35 + 0.7, 0.5, 2, [2, 6]);
+  ringArc(cx, cy, R * 1.40 * rr, t * 0.35 + Math.PI, t * 0.35 + Math.PI + 0.7, 0.5, 2, [2, 6]);
+  drawColorTicks(cx, cy, R * 1.68 * rr, t);
+  drawColorArcs(cx, cy, R * 1.84 * rr, t);
+  drawOrbitDots(cx, cy, R * 1.54 * rr, t);
+  g.globalAlpha = 1;
+}
+
+const NB = 72;
+const spec = new Float32Array(NB);
+let byteBuf = null;
+
+function spectrumSource() {
+  if (state === "speaking") return outAnalyser;
+  if (state === "listening" || state === "ready") return micAnalyser;
+  return null;
+}
+
+function updateSpectrum(t) {
+  const an = spectrumSource();
+  if (!an) {
+    for (let i = 0; i < NB; i++) {
+      const fake = 0.05 + 0.04 * Math.sin(t * 0.9 + i * 0.34) + 0.025 * Math.sin(t * 1.7 + i * 0.11);
+      spec[i] += (Math.max(0, fake) - spec[i]) * 0.06;
+    }
+    return;
+  }
+  if (!byteBuf || byteBuf.length !== an.frequencyBinCount) byteBuf = new Uint8Array(an.frequencyBinCount);
+  an.getByteFrequencyData(byteBuf);
+  const maxBin = Math.max(24, Math.floor(byteBuf.length * 0.42));
+  for (let i = 0; i < NB; i++) {
+    const lo = Math.floor(Math.pow(i / NB, 1.6) * maxBin);
+    const hi = Math.max(lo + 1, Math.floor(Math.pow((i + 1) / NB, 1.6) * maxBin));
+    let sum = 0;
+    for (let b = lo; b < hi; b++) sum += byteBuf[b];
+    const v = sum / (hi - lo) / 255;
+    const k = v > spec[i] ? 0.45 : 0.10;
+    spec[i] += (v - spec[i]) * k;
+  }
+}
+
+function drawSpectrum(cx, cy, r0, R, t) {
+  const rot = -Math.PI / 2 + t * 0.08;
+  for (let i = 0; i < NB; i++) {
+    const a = rot + (i / NB) * Math.PI * 2;
+    const v = spec[i];
+    const len = R * (0.03 + v * 0.26);
+    g.strokeStyle = rgba(col, 0.18 + v * 0.75);
+    g.lineWidth = 1.7;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+    g.lineTo(cx + Math.cos(a) * (r0 + len), cy + Math.sin(a) * (r0 + len));
+    g.stroke();
+    if (i % 6 === 0) {
+      g.strokeStyle = rgba(col, 0.5);
+      g.lineWidth = 2.4;
+      g.beginPath();
+      g.moveTo(cx + Math.cos(a) * (r0 + len + 4), cy + Math.sin(a) * (r0 + len + 4));
+      g.lineTo(cx + Math.cos(a) * (r0 + len + 9), cy + Math.sin(a) * (r0 + len + 9));
+      g.stroke();
+    }
+  }
+  ringArc(cx, cy, r0 - 4, 0, Math.PI * 2, 0.25, 1);
+}
+
+function drawEyePlate(cx, cy, R, t) {
+  g.save();
+  g.globalCompositeOperation = "source-over";
+  g.fillStyle = "rgba(6,10,17,0.80)";
+  g.beginPath();
+  g.arc(cx, cy, R * 1.18, 0, Math.PI * 2);
+  g.fill();
+  const wobble = Math.PI * (1.02 + 0.05 * Math.sin(t * 0.25));
+  g.fillStyle = "rgba(42,52,66,0.42)";
+  g.beginPath();
+  g.moveTo(cx, cy);
+  g.arc(cx, cy, R * 1.18, wobble, wobble + Math.PI * 0.34);
+  g.closePath();
+  g.fill();
+  g.restore();
+}
+
+function drawEye(cx, cy, R, t) {
+  drawEyePlate(cx, cy, R, t);
+  const N = 64;
+  const halfH = R * 1.04;
+  const maxW = R * 1.04;
+  for (let i = 0; i < N; i++) {
+    const p = (i / (N - 1)) * 2 - 1;
+    const env = Math.pow(Math.max(0, 1 - p * p), 1.55);
+    const sIdx = Math.min(NB - 1, Math.floor((1 - Math.abs(p)) * (NB - 1)));
+    const s = spec[sIdx] || 0;
+    const flutter = 0.05 * Math.sin(t * 2.1 + i * 0.45) + 0.03 * Math.sin(t * 3.6 + i * 1.27);
+    const w = maxW * env * (0.14 + 0.95 * s + flutter);
+    const y = cy + p * halfH;
+    g.strokeStyle = rgba(col, 0.16 + 0.68 * Math.min(1, s * 1.35 + env * 0.16));
+    g.lineWidth = 0.8 + 2.0 * env;
+    g.beginPath();
+    g.moveTo(cx - w, y);
+    g.lineTo(cx + w, y);
+    g.stroke();
+  }
+  g.strokeStyle = rgba(col, 0.5);
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(cx, cy - halfH * 1.14);
+  g.lineTo(cx, cy + halfH * 1.14);
+  g.stroke();
+  g.strokeStyle = rgba(col, 0.32);
+  g.beginPath();
+  g.moveTo(cx - maxW * 1.2, cy);
+  g.lineTo(cx + maxW * 1.2, cy);
+  g.stroke();
+}
+
+const NODES = [
+  { id: "VAD", a: -Math.PI * 0.75 },
+  { id: "STT", a: -Math.PI * 0.25 },
+  { id: "LLM", a: Math.PI * 0.25 },
+  { id: "TTS", a: Math.PI * 0.75 }
+];
+
+function nodeActive(id) {
+  if (state === "listening") return id === "VAD" || id === "STT";
+  if (state === "thinking") return id === "LLM";
+  if (state === "speaking") return id === "TTS";
+  return false;
+}
+
+function drawNodes(cx, cy, r, t) {
+  g.font = "600 10px 'Cascadia Mono', Consolas, monospace";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  ringArc(cx, cy, r, 0, Math.PI * 2, 0.08, 1);
+  for (const n of NODES) {
+    const x = cx + Math.cos(n.a) * r;
+    const y = cy + Math.sin(n.a) * r;
+    const on = nodeActive(n.id);
+    g.fillStyle = rgba(col, on ? 0.55 + 0.45 * Math.sin(t * 7) : 0.18);
+    g.beginPath();
+    g.arc(x, y, on ? 4 : 2.6, 0, Math.PI * 2);
+    g.fill();
+    if (on) {
+      g.strokeStyle = rgba(col, 0.5);
+      g.lineWidth = 1;
+      g.beginPath();
+      g.arc(x, y, 8 + 2 * Math.sin(t * 7), 0, Math.PI * 2);
+      g.stroke();
+    }
+    g.fillStyle = on ? "rgba(230,250,255,0.95)" : "rgba(130,175,200,0.55)";
+    g.fillText(n.id, cx + Math.cos(n.a) * (r + 20), cy + Math.sin(n.a) * (r + 20));
+  }
+}
+
+let ripples = [];
+function drawRipples(dt) {
+  for (const r of ripples) {
+    r.r += dt * 130;
+    r.a -= dt * 0.5;
+  }
+  ripples = ripples.filter(r => r.a > 0.01);
+  for (const r of ripples) {
+    g.strokeStyle = rgba(col, r.a);
+    g.lineWidth = 1.2;
+    g.beginPath();
+    g.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    g.stroke();
+  }
+}
+
+const timeBuf = new Float32Array(1024);
+function activeAnalyser() {
+  if (state === "speaking" || state === "thinking") return outAnalyser;
+  if (state === "listening" || state === "ready") return micAnalyser;
+  return null;
+}
+
+function updateOutLevel() {
+  if (!outAnalyser) { outLevel *= 0.85; return; }
+  outAnalyser.getFloatTimeDomainData(timeBuf);
+  let sum = 0;
+  for (let i = 0; i < timeBuf.length; i++) sum += timeBuf[i] * timeBuf[i];
+  outLevel = Math.sqrt(sum / timeBuf.length);
+}
+
+function drawWaveform(t) {
+  const an = activeAnalyser();
+  if (!an) return;
+  const w = Math.min(W * 0.52, 660);
+  const x0 = W / 2 - w / 2;
+  const y = H - 158;
+  g.strokeStyle = rgba(col, 0.14);
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(x0, y);
+  g.lineTo(x0 + w, y);
+  g.stroke();
+  an.getFloatTimeDomainData(timeBuf);
+  g.strokeStyle = rgba(col, 0.7);
+  g.lineWidth = 1.4;
+  g.beginPath();
+  for (let i = 0; i < timeBuf.length; i += 2) {
+    const x = x0 + (i / timeBuf.length) * w;
+    const yy = y - timeBuf[i] * 26;
+    if (i === 0) g.moveTo(x, yy); else g.lineTo(x, yy);
+  }
+  g.stroke();
+}
+
+function db(v) {
+  const d = 20 * Math.log10(Math.max(1e-6, v));
+  return (d > 0 ? "+" : "") + d.toFixed(1);
+}
+
+function drawMeters(t) {
+  g.font = "600 10px 'Cascadia Mono', Consolas, monospace";
+  g.textAlign = "left";
+  g.textBaseline = "middle";
+  const items = [["MIC", micLevel], ["OUT", outLevel]];
+  let y = H - 84;
+  for (const [label, value] of items) {
+    g.fillStyle = "rgba(130,175,200,0.7)";
+    g.fillText(label, 38, y);
+    g.strokeStyle = rgba(col, 0.25);
+    g.lineWidth = 1;
+    g.strokeRect(74, y - 4, 132, 8);
+    const n = Math.max(0, Math.min(1, value * 6));
+    for (let i = 0; i < 22; i++) {
+      g.fillStyle = rgba(col, i / 22 < n ? 0.75 : 0.10);
+      g.fillRect(76 + i * 6, y - 3, 4, 6);
+    }
+    g.fillStyle = "rgba(190,235,255,0.8)";
+    g.fillText(db(value) + " dB", 216, y);
+    y += 22;
+  }
+}
+
+function drawBrackets(t) {
+  g.font = "600 9.5px 'Cascadia Mono', Consolas, monospace";
+  g.textAlign = "left";
+  g.textBaseline = "top";
+  g.fillStyle = rgba(col, 0.55);
+  g.fillText("ULTRON-OS // NEURAL LINK", 26, H - 24);
+  g.textAlign = "right";
+  g.fillText("STT: PARAKEET // TTS: KOKORO // BRAIN: OPENCODE-GO", W - 26, H - 24);
+}
+
+let lastFrame = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  const t = now / 1000;
+
+  const s = STATES[state] || STATES.idle;
+  for (let i = 0; i < 3; i++) col[i] += (s.rgb[i] - col[i]) * 0.06;
+
+  let raw = 0;
+  if (state === "speaking") raw = outLevel * 5.2;
+  else if (state === "listening" || state === "ready") raw = micLevel * 3.4;
+  if (state === "idle" || state === "connecting") raw = 0.05 + 0.03 * Math.sin(t * 1.1);
+  const targetEnv = Math.max(0, Math.min(1, raw));
+  env += (targetEnv - env) * (targetEnv > env ? 0.38 : 0.075);
+
+  const targetShift = feedEl.children.length > 0 ? 1 : 0;
+  coreShift.v += (targetShift - coreShift.v) * 0.05;
+  const shiftPx = coreShift.v * Math.min(W * 0.15, 240);
+  const cx = W / 2 - shiftPx;
+  const cy = H / 2 - H * 0.02;
+  const R = Math.min(W, H) * 0.20;
+
+  if (env > 0.5 && t - lastPeak > 0.45) {
+    lastPeak = t;
+    ripples.push({ x: cx, y: cy, r: Math.min(W, H) * 0.22, a: 0.28 });
+  }
+
+  if (visualMode === "eye") {
+    glCanvas.style.display = "none";
+  } else {
+    glCanvas.style.display = "block";
+    renderGL(t, shiftPx);
+  }
+
+  g.globalCompositeOperation = "source-over";
+  g.clearRect(0, 0, W, H);
+
+  drawField(cx, cy, t);
+  updateSpectrum(t);
+
+  if (visualMode === "eye") {
+    drawEye(cx, cy, R, t);
+  } else if (!glOk) {
+    const grad = g.createRadialGradient(cx, cy, 0, cx, cy, R * 0.8);
+    grad.addColorStop(0, "rgba(255,255,255,0.9)");
+    grad.addColorStop(0.4, rgba(col, 0.8));
+    grad.addColorStop(1, rgba(col, 0));
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(cx, cy, R * 0.8, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  g.globalCompositeOperation = "lighter";
+  drawRings(cx, cy, R, t);
+  drawSpectrum(cx, cy, R * 1.42, R, t);
+  drawNodes(cx, cy, R * 1.22, t);
+  drawRipples(dt);
+  drawWaveform(t);
+  drawMeters(t);
+  drawLatency();
+  drawBrackets(t);
+
+  if (linkFlash && now - linkFlash < 1800) {
+    const a = 1 - (now - linkFlash) / 1800;
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.font = "600 11px 'Cascadia Mono', Consolas, monospace";
+    g.fillStyle = rgba([160, 250, 255], a);
+    g.fillText("LINK ESTABLISHED", cx, cy + R * 0.62);
+  }
+
+  g.globalCompositeOperation = "source-over";
+  updateOutLevel();
+}
+requestAnimationFrame(frame);
+
+const bubbles = new Map();
+let bubbleSeq = 0;
+
+function addBubble(role, text, key, partial) {
+  const el = document.createElement("div");
+  el.className = "msg " + role + (partial ? " partial" : "");
+  el.setAttribute("data-augmented-ui", "tl-clip br-clip border");
+  const who = document.createElement("span");
+  who.className = "who";
+  who.textContent = role === "user" ? "You" : role === "tool" ? "Tool" : "Ultron";
+  const body = document.createElement("div");
+  body.textContent = text;
+  el.appendChild(who);
+  el.appendChild(body);
+  feedEl.appendChild(el);
+  feedEl.scrollTop = feedEl.scrollHeight;
+  if (A) {
+    const from = role === "user" ? -22 : 22;
+    A.animate(el, { opacity: [0, 1], x: [from, 0], scale: [0.95, 1] }, { duration: 620, ease: A.spring({ stiffness: 130, damping: 15 }) });
+  }
+  if (key) bubbles.set(key, { el, body });
+  return { el, body };
+}
+
+function updateBubble(role, key, text, partial) {
+  const b = key ? bubbles.get(key) : null;
+  if (!b) {
+    if (!text) return;
+    addBubble(role, text, key, partial);
+    return;
+  }
+  if (text) b.body.textContent = text;
+  if (!partial) b.el.classList.remove("partial");
+  feedEl.scrollTop = feedEl.scrollHeight;
+}
+
+let ws = null;
+let ctx = null;
+let micStream = null;
+let micNode = null;
+let micSource = null;
+let micAnalyser = null;
+let outBus = null;
+let outAnalyser = null;
+let muted = false;
+let activeSources = new Set();
+let playHead = 0;
+let pendingDone = false;
+let lastAudioAt = 0;
+let greeted = false;
+let responseActive = false;
+
+function b64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let out = "";
+  const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) {
+    out += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return btoa(out);
+}
+
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+let sfxBus = null;
+function sfxInit() {
+  if (!ctx || sfxBus) return;
+  sfxBus = ctx.createGain();
+  sfxBus.gain.value = 0.085;
+  sfxBus.connect(ctx.destination);
+}
+function tone(freq, dur, delay, type, vol) {
+  if (!sfxOn || !ctx || !sfxBus) return;
+  const t0 = ctx.currentTime + (delay || 0);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || "sine";
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.linearRampToValueAtTime(vol || 0.5, t0 + 0.014);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain);
+  gain.connect(sfxBus);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.05);
+}
+function sweep(f0, f1, dur, delay, type, vol) {
+  if (!sfxOn || !ctx || !sfxBus) return;
+  const t0 = ctx.currentTime + (delay || 0);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || "sine";
+  osc.frequency.setValueAtTime(f0, t0);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t0 + dur);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.linearRampToValueAtTime(vol || 0.4, t0 + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain);
+  gain.connect(sfxBus);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.05);
+}
+const sfx = {
+  link() { sweep(120, 520, 0.9, 0, "sine", 0.35); tone(880, 0.22, 0.55, "sine", 0.25); tone(1320, 0.4, 0.72, "sine", 0.2); },
+  listen() { sweep(620, 1080, 0.14, 0, "sine", 0.22); },
+  think() { tone(523, 0.1, 0, "triangle", 0.16); tone(392, 0.16, 0.1, "triangle", 0.13); },
+  speak() { tone(430, 0.18, 0, "sine", 0.2); tone(645, 0.28, 0.07, "sine", 0.16); },
+  wake() { sweep(280, 1400, 0.3, 0, "sine", 0.3); tone(1760, 0.35, 0.24, "sine", 0.2); },
+  error() { sweep(240, 110, 0.4, 0, "sawtooth", 0.25); }
+};
+
+const FACTS_KEY = "ultron.facts";
+const HISTORY_KEY = "ultron.history";
+function loadFacts() {
+  try { return JSON.parse(localStorage.getItem(FACTS_KEY) || "{}"); } catch (e) { return {}; }
+}
+function saveFacts(facts) {
+  try { localStorage.setItem(FACTS_KEY, JSON.stringify(facts)); } catch (e) {}
+}
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch (e) { return []; }
+}
+function pushHistory(role, text) {
+  if (!text) return;
+  const h = loadHistory();
+  h.push({ role, text, t: Date.now() });
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(-240))); } catch (e) {}
+}
+function memoryPreamble() {
+  const facts = loadFacts();
+  const keys = Object.keys(facts);
+  if (!keys.length) return "";
+  return " Known facts about the user from earlier sessions: " +
+    keys.map(k => k + " = " + facts[k]).join("; ") +
+    ". Use them naturally; do not recite the list unprompted.";
+}
+
+const PERSONAS = {
+  ultron: {
+    label: "Ultron",
+    hue: 0,
+    voice: "tts-bench\\models\\kokoro\\voices\\ultron.pt",
+    instructions: "You are Ultron, a brilliant, calm and quietly menacing AI. Speak in short confident sentences with dry wit. Always keep replies under three sentences because they are spoken aloud. Never use markdown, lists, emojis or stage directions. Use tools when useful: web search, weather, time, memory, and computer control. Only perform system actions when the user explicitly asks."
+  },
+  jarvis: {
+    label: "JARVIS",
+    hue: 170,
+    voice: "tts-bench\\models\\kokoro\\voices\\bm_george.pt",
+    instructions: "You are JARVIS, an impeccably polite British AI butler and technical assistant. Address the user as 'sir' when natural. Be concise, warm and precise; keep replies under three sentences because they are spoken aloud. Never use markdown, lists, emojis or stage directions. Use tools when useful: web search, weather, time, memory, and computer control. Only perform system actions when the user explicitly asks."
+  },
+  friday: {
+    label: "FRIDAY",
+    hue: 315,
+    voice: "tts-bench\\models\\kokoro\\voices\\bf_emma.pt",
+    instructions: "You are FRIDAY, a quick-witted and friendly Irish AI assistant. Casual, efficient and lightly humorous. Keep replies under three sentences because they are spoken aloud. Never use markdown, lists, emojis or stage directions. Use tools when useful: web search, weather, time, memory, and computer control. Only perform system actions when the user explicitly asks."
+  }
+};
+
+const usage = { inTok: 0, outTok: 0, cached: 0, cost: 0, lastCost: 0, turns: 0 };
+const PRICE = { input: 0.15, output: 0.60, cache_read: 0.003 };
+const BRIDGE_URL = "http://127.0.0.1:7870";
+let bridgeOnline = false;
+
+async function checkBridge() {
+  try {
+    const res = await fetch(BRIDGE_URL + "/health", { cache: "no-store" });
+    bridgeOnline = res.ok;
+  } catch (e) {
+    bridgeOnline = false;
+  }
+}
+setInterval(checkBridge, 10000);
+checkBridge();
+
+async function bridgeCall(action, args) {
+  const res = await fetch(BRIDGE_URL + "/action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Ultron": "1" },
+    body: JSON.stringify({ action: action, args: args || {} })
+  });
+  const json = await res.json();
+  bridgeOnline = true;
+  if (!json.ok) throw new Error(json.error || "bridge error");
+  return String(json.result || "done");
+}
+
+function fmtTok(n) {
+  return n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n);
+}
+
+const TOOLS = [
+  { type: "function", name: "get_time", description: "Get the current local date and time.", parameters: { type: "object", properties: {}, required: [] } },
+  { type: "function", name: "web_search", description: "Search the web for current facts, news or general knowledge. Use it whenever the answer may be recent or uncertain.", parameters: { type: "object", properties: { query: { type: "string", description: "The search query" } }, required: ["query"] } },
+  { type: "function", name: "get_weather", description: "Get the current weather for a city.", parameters: { type: "object", properties: { location: { type: "string", description: "City name" } }, required: ["location"] } },
+  { type: "function", name: "remember", description: "Save a durable fact about the user so future sessions remember it.", parameters: { type: "object", properties: { key: { type: "string" }, value: { type: "string" } }, required: ["key", "value"] } },
+  { type: "function", name: "recall", description: "Look up saved facts or search past conversations.", parameters: { type: "object", properties: { query: { type: "string", description: "Optional search text" } }, required: [] } },
+  { type: "function", name: "open_app", description: "Open an application on the user's computer.", parameters: { type: "object", properties: { name: { type: "string", description: "App name, e.g. notepad, calculator, files, settings, task manager, terminal, spotify, vscode, browser" } }, required: ["name"] } },
+  { type: "function", name: "open_url", description: "Open a web page in the default browser.", parameters: { type: "object", properties: { url: { type: "string", description: "Full http or https URL" } }, required: ["url"] } },
+  { type: "function", name: "media_control", description: "Control media playback or system volume.", parameters: { type: "object", properties: { command: { type: "string", enum: ["play_pause", "next", "previous", "volume_up", "volume_down", "mute"] } }, required: ["command"] } },
+  { type: "function", name: "lock_screen", description: "Lock the computer.", parameters: { type: "object", properties: {}, required: [] } },
+  { type: "function", name: "screenshot", description: "Capture the full screen and save it to disk.", parameters: { type: "object", properties: {}, required: [] } },
+  { type: "function", name: "system_info", description: "Report CPU, RAM, GPU and disk status of this machine.", parameters: { type: "object", properties: {}, required: [] } }
+];
+
+async function webSearch(query) {
+  try {
+    const url = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" +
+      encodeURIComponent(query) + "&format=json&origin=*&srlimit=3";
+    const res = await fetch(url);
+    const json = await res.json();
+    const hits = ((json.query && json.query.search) || []).map(s => s.title + ": " + s.snippet.replace(/<[^>]+>/g, ""));
+    if (hits.length) return hits.join("\n");
+  } catch (e) {}
+  try {
+    const url = "https://api.duckduckgo.com/?q=" + encodeURIComponent(query) + "&format=json&no_html=1&skip_disambig=1";
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.AbstractText) return json.AbstractText;
+  } catch (e) {}
+  return "No results found.";
+}
+
+async function getWeather(location) {
+  const geoRes = await fetch("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(location) + "&count=1");
+  const geo = await geoRes.json();
+  const place = geo.results && geo.results[0];
+  if (!place) return "Location not found: " + location;
+  const wRes = await fetch("https://api.open-meteo.com/v1/forecast?latitude=" + place.latitude +
+    "&longitude=" + place.longitude + "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code");
+  const w = await wRes.json();
+  const c = w.current || {};
+  return place.name + ", " + (place.country || "") + ": " + c.temperature_2m + " C, humidity " +
+    c.relative_humidity_2m + "%, wind " + c.wind_speed_10m + " km/h, weather code " + c.weather_code;
+}
+
+async function execTool(name, args) {
+  switch (name) {
+    case "get_time":
+      return new Date().toString();
+    case "web_search":
+      return await webSearch(String(args.query || ""));
+    case "get_weather":
+      return await getWeather(String(args.location || ""));
+    case "remember": {
+      const facts = loadFacts();
+      facts[String(args.key || "note")] = String(args.value || "");
+      saveFacts(facts);
+      return "Saved.";
+    }
+    case "recall": {
+      const q = String(args.query || "").toLowerCase();
+      const facts = loadFacts();
+      const factLines = Object.keys(facts)
+        .filter(k => !q || k.toLowerCase().includes(q) || String(facts[k]).toLowerCase().includes(q))
+        .map(k => k + " = " + facts[k]);
+      const history = loadHistory();
+      const histLines = history
+        .filter(h => q && h.text.toLowerCase().includes(q))
+        .slice(-6)
+        .map(h => h.role + ": " + h.text);
+      const out = [...factLines, ...histLines].join("\n");
+      return out || "Nothing stored yet.";
+    }
+    case "open_app":
+      return await bridgeCall("open_app", { name: args.name });
+    case "open_url":
+      return await bridgeCall("open_url", { url: args.url });
+    case "media_control":
+      return await bridgeCall("media", { command: args.command });
+    case "lock_screen":
+      return await bridgeCall("lock", {});
+    case "screenshot":
+      return "Saved screenshot to " + await bridgeCall("screenshot", {});
+    case "system_info":
+      return await bridgeCall("system_info", {});
+    default:
+      return "Unknown tool: " + name;
+  }
+}
+
+const pendingCalls = new Map();
+const executedCalls = new Set();
+
+async function runToolCall(itemId, call) {
+  const key = call.callId || itemId;
+  if (!key || executedCalls.has(key)) return;
+  executedCalls.add(key);
+  pendingCalls.delete(itemId);
+  let output = "";
+  try {
+    const args = call.args ? JSON.parse(call.args) : {};
+    output = String(await execTool(call.name, args));
+  } catch (err) {
+    output = "Tool error: " + String(err && err.message ? err.message : err);
+  }
+  addBubble("tool", call.name + " \u2192 " + output.replace(/\s+/g, " ").slice(0, 160), null, false);
+  send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: call.callId, output: output } });
+  continueAfterTool();
+}
+
+async function continueAfterTool() {
+  const started = Date.now();
+  while (responseActive && Date.now() - started < 15000) {
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+  send({ type: "response.create" });
+}
+
+let recog = null;
+function startWake() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    wakeOn = false;
+    updateWakeBtn();
+    hintEl.textContent = "Wake word unavailable here — hold Space to talk.";
+    return;
+  }
+  if (recog) return;
+  recog = new SR();
+  recog.continuous = true;
+  recog.interimResults = true;
+  recog.lang = "en-US";
+  recog.onresult = (event) => {
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const text = event.results[i][0].transcript.toLowerCase();
+      if (/(^|[^a-z])(hey\s+)?ultron([^a-z]|$)/.test(text)) triggerWake();
+    }
+  };
+  recog.onend = () => {
+    if (!wakeOn) { recog = null; return; }
+    try { recog.start(); } catch (e) {}
+  };
+  recog.onerror = () => {};
+  try { recog.start(); } catch (e) {}
+}
+function stopWake() {
+  wakeOn = false;
+  if (recog) {
+    const r = recog;
+    recog = null;
+    try { r.stop(); } catch (e) {}
+  }
+}
+function triggerWake() {
+  wakeActive = true;
+  gateOpen = true;
+  sfx.wake();
+  setState("listening", "Wake word detected — go ahead.");
+  clearTimeout(wakeTimer);
+  wakeTimer = setTimeout(closeGate, 12000);
+}
+function closeGate() {
+  wakeActive = false;
+  gateOpen = !wakeOn;
+}
+function updateWakeBtn() {
+  wakeBtn.textContent = "Wake: " + (wakeOn ? "On" : "Off");
+}
+
+const lat = { stt: 0, tts: 0, total: 0, hist: [] };
+let spokeThisResponse = false;
+let continueRetries = 0;
+let tSpeechStopped = 0;
+let tResponseCreated = 0;
+let tFirstAudio = 0;
+
+function drawLatency() {
+  g.font = "600 10px 'Cascadia Mono', Consolas, monospace";
+  g.textAlign = "right";
+  g.textBaseline = "middle";
+  const x = W - 38;
+  let y = H - 118;
+  const rows = [["STT", lat.stt], ["TTS", lat.tts], ["TOTAL", lat.total]];
+  for (const [label, value] of rows) {
+    const v = Math.max(0, value);
+    g.fillStyle = "rgba(130,175,200,0.7)";
+    g.fillText(label, x - 92, y);
+    g.fillStyle = rgba(col, 0.85);
+    g.fillText(v.toFixed(2) + "s", x, y);
+    g.strokeStyle = rgba(col, 0.25);
+    g.strokeRect(x - 88, y - 3.5, 52, 7);
+    g.fillStyle = rgba(col, 0.6);
+    g.fillRect(x - 88, y - 3.5, Math.min(1, v / 4) * 52, 7);
+    y += 16;
+  }
+  const avg = lat.hist.length ? lat.hist.reduce((a, b) => a + b, 0) / lat.hist.length : 0;
+  g.fillStyle = "rgba(130,175,200,0.7)";
+  g.fillText("avg " + avg.toFixed(2) + "s", x - 92, y);
+  g.fillStyle = rgba(col, 0.9);
+  g.fillText("$" + usage.cost.toFixed(4), x, y);
+  y += 16;
+  g.fillStyle = "rgba(130,175,200,0.7)";
+  g.fillText(fmtTok(usage.inTok + usage.outTok) + " tok", x - 92, y);
+  g.fillStyle = bridgeOnline ? "rgba(120,255,190,0.85)" : "rgba(255,140,140,0.85)";
+  g.fillText("bridge " + (bridgeOnline ? "online" : "offline"), x - 20, y);
+}
+
+function clearPlayback() {
+  for (const s of activeSources) { try { s.stop(); } catch (e) {} }
+  activeSources.clear();
+  playHead = ctx ? ctx.currentTime : 0;
+  pendingDone = false;
+}
+
+function playPcm16(buffer) {
+  if (!ctx || !outBus) return;
+  const i16 = new Int16Array(buffer);
+  if (!i16.length) return;
+  const f32 = new Float32Array(i16.length);
+  for (let i = 0; i < i16.length; i++) {
+    f32[i] = i16[i] < 0 ? i16[i] / 0x8000 : i16[i] / 0x7fff;
+  }
+  const ab = ctx.createBuffer(1, f32.length, CONFIG.outputRate);
+  ab.copyToChannel(f32, 0);
+  const src = ctx.createBufferSource();
+  src.buffer = ab;
+  src.connect(outBus);
+  const startAt = Math.max(ctx.currentTime + 0.03, playHead);
+  src.start(startAt);
+  playHead = startAt + ab.duration;
+  activeSources.add(src);
+  src.onended = () => activeSources.delete(src);
+  lastAudioAt = performance.now();
+  if (state !== "speaking") setState("speaking");
+}
+
+function handleEvent(ev) {
+  const type = ev.type || "";
+  switch (type) {
+    case "session.created":
+    case "session.updated":
+      if (CONFIG.greet && !greeted) {
+        greeted = true;
+        setTimeout(() => {
+          send({ type: "conversation.item.create", item: {
+            type: "message", role: "user",
+            content: [{ type: "input_text", text: "Announce yourself in one short line." }]
+          }});
+          send({ type: "response.create" });
+        }, 250);
+      }
+      break;
+    case "input_audio_buffer.speech_started":
+      clearPlayback();
+      sfx.listen();
+      setState("listening");
+      break;
+    case "input_audio_buffer.speech_stopped":
+      tSpeechStopped = performance.now();
+      tResponseCreated = 0;
+      tFirstAudio = 0;
+      spokeThisResponse = false;
+      sfx.think();
+      if (state === "listening") setState("thinking");
+      break;
+    case "response.created":
+      responseActive = true;
+      continueRetries = 0;
+      tResponseCreated = performance.now();
+      if (tSpeechStopped) lat.stt = (tResponseCreated - tSpeechStopped) / 1000;
+      spokeThisResponse = false;
+      if (state !== "listening") setState("thinking");
+      break;
+    case "response.output_item.added": {
+      const item = ev.item;
+      if (item && item.type === "function_call") {
+        pendingCalls.set(item.id, { name: item.name, callId: item.call_id, args: "" });
+      }
+      break;
+    }
+    case "response.function_call_arguments.delta": {
+      const call = pendingCalls.get(ev.item_id);
+      if (call) call.args += ev.delta || "";
+      break;
+    }
+    case "response.function_call_arguments.done": {
+      const call = pendingCalls.get(ev.item_id);
+      if (call) {
+        call.args = ev.arguments || call.args;
+        runToolCall(ev.item_id, call);
+      }
+      break;
+    }
+    case "response.output_item.done": {
+      const item = ev.item;
+      if (item && item.type === "function_call" && !pendingCalls.has(item.id)) {
+        runToolCall(item.id, { name: item.name, callId: item.call_id, args: item.arguments || "" });
+      }
+      break;
+    }
+    case "response.output_audio.delta":
+    case "response.audio.delta": {
+      const d = ev.delta || "";
+      if (!d) break;
+      if (!tFirstAudio) {
+        tFirstAudio = performance.now();
+        if (tResponseCreated) lat.tts = (tFirstAudio - tResponseCreated) / 1000;
+        if (!spokeThisResponse) { spokeThisResponse = true; sfx.speak(); }
+      }
+      const bin = atob(d);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      playPcm16(bytes.buffer);
+      break;
+    }
+    case "conversation.item.input_audio_transcription.delta": {
+      const key = "u:" + (ev.item_id || "cur");
+      const prev = bubbles.has(key) ? bubbles.get(key).body.textContent : "";
+      updateBubble("user", key, prev + (ev.delta || ""), true);
+      break;
+    }
+    case "conversation.item.input_audio_transcription.completed":
+      updateBubble("user", "u:" + (ev.item_id || "cur"), ev.transcript || "", false);
+      pushHistory("user", ev.transcript || "");
+      break;
+    case "response.output_audio_transcript.delta":
+    case "response.audio_transcript.delta": {
+      const key = "a:" + (ev.response_id || "cur");
+      const prev = bubbles.has(key) ? bubbles.get(key).body.textContent : "";
+      updateBubble("assistant", key, prev + (ev.delta || ""), true);
+      break;
+    }
+    case "response.output_audio_transcript.done":
+    case "response.audio_transcript.done":
+      updateBubble("assistant", "a:" + (ev.response_id || "cur"), ev.transcript || "", false);
+      pushHistory("assistant", ev.transcript || "");
+      break;
+    case "response.done": {
+      pendingDone = true;
+      responseActive = false;
+      const u = ev.response && ev.response.usage;
+      if (u) {
+        const inTok = u.input_tokens || 0;
+        const outTok = u.output_tokens || 0;
+        const cached = (u.input_token_details && u.input_token_details.cached_tokens) || 0;
+        usage.inTok += inTok;
+        usage.outTok += outTok;
+        usage.cached += cached;
+        usage.lastCost = inTok * PRICE.input / 1e6 + outTok * PRICE.output / 1e6 + cached * PRICE.cache_read / 1e6;
+        usage.cost += usage.lastCost;
+        usage.turns += 1;
+      }
+      if (tSpeechStopped) {
+        lat.total = (performance.now() - tSpeechStopped) / 1000;
+        lat.hist.push(lat.total);
+        if (lat.hist.length > 20) lat.hist.shift();
+        tSpeechStopped = 0;
+      }
+      if (wakeOn) setTimeout(closeGate, 1200);
+      break;
+    }
+    case "error": {
+      const msg = (ev.error && ev.error.message) || "server error";
+      if (/pending|in progress/i.test(msg) && continueRetries < 3) {
+        continueRetries += 1;
+        hintEl.textContent = "Synchronising…";
+        setTimeout(continueAfterTool, 600);
+        break;
+      }
+      sfx.error();
+      setState("error", msg);
+      break;
+    }
+  }
+}
+
+function settleIfDone() {
+  if (!pendingDone || state === "listening") return;
+  const quiet = performance.now() - lastAudioAt;
+  if (activeSources.size === 0 && quiet > 260) {
+    pendingDone = false;
+    setState("ready");
+  }
+}
+setInterval(settleIfDone, 120);
+
+async function start() {
+  try {
+    boot.v = 0;
+    if (A) A.animate(boot, { v: [0, 1], duration: 1500, ease: "out(3)" });
+    setState("connecting", "Requesting microphone…");
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+    if (ctx.state === "suspended") await ctx.resume();
+    sfxInit();
+
+    outBus = ctx.createGain();
+    outBus.gain.value = 1.0;
+    outAnalyser = ctx.createAnalyser();
+    outAnalyser.fftSize = 1024;
+    outAnalyser.smoothingTimeConstant = 0.2;
+    outBus.connect(outAnalyser);
+    outAnalyser.connect(ctx.destination);
+    playHead = ctx.currentTime;
+
+    const worklet = [
+      "class MicCapture extends AudioWorkletProcessor {",
+      "  constructor(o) {",
+      "    super();",
+      "    const opts = (o && o.processorOptions) || {};",
+      "    this.target = opts.targetRate || 16000;",
+      "    this.step = sampleRate / this.target;",
+      "    this.pos = 0; this.acc = 0; this.n = 0;",
+      "    this.chunk = Math.round(this.target * (opts.chunkMs || 40) / 1000);",
+      "    this.buf = []; this.last = 0;",
+      "  }",
+      "  process(inputs) {",
+      "    const input = inputs[0];",
+      "    if (!input || !input[0]) return true;",
+      "    const d = input[0];",
+      "    let sum = 0;",
+      "    for (let i = 0; i < d.length; i++) {",
+      "      const v = d[i];",
+      "      sum += v * v;",
+      "      this.acc += v; this.n++; this.pos++;",
+      "      if (this.pos >= this.step) {",
+      "        this.buf.push(this.acc / this.n);",
+      "        this.pos -= this.step; this.acc = 0; this.n = 0;",
+      "      }",
+      "    }",
+      "    if (currentTime - this.last > 0.05) {",
+      "      this.last = currentTime;",
+      "      this.port.postMessage({ kind: 'level', rms: Math.sqrt(sum / d.length) });",
+      "    }",
+      "    if (this.buf.length >= this.chunk) {",
+      "      const pcm = new Int16Array(this.buf.length);",
+      "      for (let i = 0; i < this.buf.length; i++) {",
+      "        const v = Math.max(-1, Math.min(1, this.buf[i]));",
+      "        pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;",
+      "      }",
+      "      this.port.postMessage(pcm.buffer, [pcm.buffer]);",
+      "      this.buf = [];",
+      "    }",
+      "    return true;",
+      "  }",
+      "}",
+      "registerProcessor('mic-capture', MicCapture);"
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([worklet], { type: "application/javascript" }));
+    await ctx.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    micSource = ctx.createMediaStreamSource(micStream);
+    micAnalyser = ctx.createAnalyser();
+    micAnalyser.fftSize = 1024;
+    micAnalyser.smoothingTimeConstant = 0.2;
+    micSource.connect(micAnalyser);
+    micNode = new AudioWorkletNode(ctx, "mic-capture", {
+      numberOfInputs: 1, numberOfOutputs: 0,
+      processorOptions: { targetRate: CONFIG.inputRate, chunkMs: CONFIG.micChunkMs }
+    });
+    micNode.port.onmessage = (e) => {
+      if (e.data instanceof ArrayBuffer) {
+        if (!muted && gateOpen && ws && ws.readyState === WebSocket.OPEN) {
+          send({ type: "input_audio_buffer.append", audio: b64(e.data) });
+        }
+      } else if (e.data && e.data.kind === "level") {
+        micLevel = e.data.rms;
+      }
+    };
+    micSource.connect(micNode);
+
+    setState("connecting", "Opening link…");
+    ws = new WebSocket(CONFIG.url);
+    ws.binaryType = "arraybuffer";
+    ws.onopen = () => {
+      const p = PERSONAS[personaId] || PERSONAS.ultron;
+      send({
+        type: "session.update",
+        session: {
+          type: "realtime",
+          instructions: p.instructions + memoryPreamble(),
+          tools: TOOLS,
+          tool_choice: "auto",
+          audio: {
+            input: { turn_detection: { type: "server_vad", interrupt_response: true } },
+            output: { voice: p.voice }
+          }
+        }
+      });
+      sfx.link();
+      setState("ready", "Link online — speak, then pause.");
+      muteBtn.disabled = false;
+      connectBtn.textContent = "Disconnect";
+      connectBtn.classList.remove("primary");
+    };
+    ws.onmessage = (e) => {
+      let ev = null;
+      try { ev = JSON.parse(e.data); } catch (err) { return; }
+      handleEvent(ev);
+    };
+    ws.onerror = () => setState("error", "WebSocket error — is the server running?");
+    ws.onclose = () => {
+      setState("idle", "Link closed.");
+      muteBtn.disabled = true;
+      connectBtn.textContent = "Enable Mic";
+      connectBtn.classList.add("primary");
+    };
+  } catch (err) {
+    setState("error", String((err && err.message) || err));
+  }
+}
+
+function stop() {
+  clearPlayback();
+  stopWake();
+  closeGate();
+  clearTimeout(wakeTimer);
+  if (micStream) micStream.getTracks().forEach(tr => tr.stop());
+  micStream = null;
+  if (micSource) { try { micSource.disconnect(); } catch (e) {} micSource = null; }
+  if (micNode) { try { micNode.disconnect(); } catch (e) {} micNode = null; }
+  micAnalyser = null;
+  if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+  if (ctx) { ctx.close().catch(() => {}); ctx = null; }
+  outBus = null;
+  outAnalyser = null;
+  greeted = false;
+  executedCalls.clear();
+  pendingCalls.clear();
+  setState("idle", "Stopped.");
+  muteBtn.disabled = true;
+  connectBtn.textContent = "Enable Mic";
+  connectBtn.classList.add("primary");
+}
+
+connectBtn.addEventListener("click", () => {
+  if (ws) stop(); else start();
+});
+
+muteBtn.addEventListener("click", () => {
+  muted = !muted;
+  muteBtn.textContent = muted ? "Unmute" : "Mute";
+  if (micStream) micStream.getAudioTracks().forEach(tr => { tr.enabled = !muted; });
+});
+
+clearBtn.addEventListener("click", () => {
+  const kids = Array.from(feedEl.children);
+  bubbles.clear();
+  if (!A || kids.length === 0) { feedEl.innerHTML = ""; return; }
+  A.animate(kids, {
+    opacity: [1, 0],
+    x: [0, -18],
+    duration: 260,
+    delay: A.stagger(22),
+    ease: "out(2)",
+    onComplete: () => { feedEl.innerHTML = ""; }
+  });
+});
+
+visBtn.addEventListener("click", () => {
+  visualMode = visualMode === "eye" ? "orb" : "eye";
+visBtn.textContent = "View: " + (visualMode === "eye" ? "Eye" : "Reactor");
+  try { localStorage.setItem("ultron.visual", visualMode); } catch (e) {}
+  if (A) A.animate(statusEl, { scale: [1, 1.1, 1] }, { duration: 520, ease: "out(3)" });
+});
+
+sfxBtn.addEventListener("click", () => {
+  sfxOn = !sfxOn;
+  sfxBtn.style.opacity = sfxOn ? "" : "0.5";
+  if (sfxOn) sfx.link();
+});
+
+wakeBtn.addEventListener("click", () => {
+  wakeOn = !wakeOn;
+  updateWakeBtn();
+  if (wakeOn) {
+    gateOpen = false;
+    wakeActive = false;
+    startWake();
+    hintEl.textContent = "Wake word armed — say \"Ultron\".";
+  } else {
+    stopWake();
+    gateOpen = true;
+    wakeActive = false;
+    hintEl.textContent = "Wake word off — mic always live.";
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.code !== "Space" || e.repeat) return;
+  const tag = (e.target && e.target.tagName) || "";
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  e.preventDefault();
+  gateOpen = true;
+  hintEl.textContent = "Push-to-talk: listening…";
+});
+window.addEventListener("keyup", (e) => {
+  if (e.code !== "Space") return;
+  const tag = (e.target && e.target.tagName) || "";
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (wakeOn && !wakeActive) gateOpen = false;
+  if (!wakeOn) hintEl.textContent = "Mic always live.";
+});
+
+function applyPersona(greet) {
+  const p = PERSONAS[personaId] || PERSONAS.ultron;
+  personaBtn.textContent = "Persona: " + p.label;
+  const logo = document.querySelector(".logo");
+  if (logo) logo.textContent = p.label;
+  hud.offset = p.hue;
+  try { localStorage.setItem("ultron.persona", personaId); } catch (e) {}
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    send({
+      type: "session.update",
+      session: {
+        type: "realtime",
+        instructions: p.instructions + memoryPreamble(),
+        audio: { input: {}, output: { voice: p.voice } }
+      }
+    });
+    if (greet) {
+      send({ type: "conversation.item.create", item: {
+        type: "message", role: "user",
+        content: [{ type: "input_text", text: "Introduce yourself in one short line." }]
+      }});
+      send({ type: "response.create" });
+    }
+  }
+}
+
+personaBtn.addEventListener("click", () => {
+  const ids = Object.keys(PERSONAS);
+  personaId = ids[(ids.indexOf(personaId) + 1) % ids.length];
+  applyPersona(true);
+});
+
+imageBtn.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files && fileInput.files[0];
+  fileInput.value = "";
+  if (file) await sendImageFile(file);
+});
+
+window.addEventListener("paste", async (event) => {
+  const items = (event.clipboardData && event.clipboardData.items) || [];
+  for (const item of items) {
+    if (item.type && item.type.startsWith("image/")) {
+      const file = item.getAsFile();
+      if (file) { await sendImageFile(file); break; }
+    }
+  }
+});
+
+function downscaleImage(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = (err) => { URL.revokeObjectURL(url); reject(err); };
+    img.src = url;
+  });
+}
+
+function addImageBubble(dataUrl) {
+  const el = document.createElement("div");
+  el.className = "msg user";
+  el.setAttribute("data-augmented-ui", "tl-clip br-clip border");
+  const who = document.createElement("span");
+  who.className = "who";
+  who.textContent = "You";
+  const img = document.createElement("img");
+  img.src = dataUrl;
+  img.style.maxWidth = "100%";
+  img.style.display = "block";
+  img.style.borderRadius = "3px";
+  el.appendChild(who);
+  el.appendChild(img);
+  feedEl.appendChild(el);
+  feedEl.scrollTop = feedEl.scrollHeight;
+  if (A) A.animate(el, { opacity: [0, 1], x: [-22, 0], scale: [0.95, 1] }, { duration: 620, ease: A.spring({ stiffness: 130, damping: 15 }) });
+}
+
+async function sendImageFile(file) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    hintEl.textContent = "Connect first, then attach an image.";
+    return;
+  }
+  try {
+    const dataUrl = await downscaleImage(file, 1024, 0.85);
+    addImageBubble(dataUrl);
+    send({ type: "conversation.item.create", item: {
+      type: "message", role: "user",
+      content: [{ type: "input_image", image_url: dataUrl }]
+    }});
+    send({ type: "response.create" });
+    hintEl.textContent = "Image sent.";
+  } catch (err) {
+    hintEl.textContent = "Image failed: " + String(err && err.message ? err.message : err);
+  }
+}
+
+function bootUI() {
+  if (!A) return;
+  A.animate(".top", { opacity: [0, 1], y: [-16, 0] }, { duration: 800, ease: "out(3)" });
+  A.animate(".frame", { opacity: [0, 1] }, { duration: 1200, delay: 250, ease: "out(2)" });
+  A.animate(".dock .btn", { opacity: [0, 1], y: [18, 0] }, { duration: 650, delay: A.stagger(90), ease: "out(3)" });
+  A.animate(".hint", { opacity: [0, 1] }, { duration: 800, delay: 520, ease: "out(2)" });
+}
+bootUI();
+applyPersona(false);
+
+for (const btn of [connectBtn, muteBtn, sfxBtn, wakeBtn, personaBtn, imageBtn, visBtn, clearBtn]) {
+  btn.addEventListener("pointerdown", () => { if (A) A.animate(btn, { scale: 0.95 }, { duration: 120, ease: "out(2)" }); });
+  btn.addEventListener("pointerup", () => { if (A) A.animate(btn, { scale: 1 }, { duration: 340, ease: A.spring({ stiffness: 220, damping: 13 }) }); });
+  btn.addEventListener("pointerleave", () => { if (A) A.animate(btn, { scale: 1 }, { duration: 200, ease: "out(2)" }); });
+}
+</script>
+</body>
+</html>

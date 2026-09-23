@@ -1,0 +1,44 @@
+# Local runtime state
+.runtime/
+screenshots/
+logs/
+
+# Python environments and caches
+**/.venv/
+**/venv/
+**/env/
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage*
+htmlcov/
+
+# JavaScript dependencies/build output
+**/node_modules/
+**/dist/
+
+# Downloaded model and dataset caches
+tts-bench/models/hf-cache/
+tts-bench/audio/
+tts-bench/voice-samples/
+tts-bench/tools/**/logs/
+tts-bench/tools/**/samples/
+tts-bench/tools/**/voices/
+
+# Local secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# OS/editor files
+.DS_Store
+._*
+Thumbs.db
+*.swp
+*.swo
+*~

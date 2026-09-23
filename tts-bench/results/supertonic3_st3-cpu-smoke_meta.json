@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-09-11T22:34:11.932264+00:00",
+  "tag": "st3-cpu-smoke",
+  "provider": "cpu",
+  "threads": 0,
+  "python": "3.12.9",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "supertonic": "1.3.1",
+  "onnxruntime": "1.30.0",
+  "ort_providers_available": [
+    "AzureExecutionProvider",
+    "CPUExecutionProvider"
+  ],
+  "ram_gb": 15.7,
+  "model_load_s": 1.913,
+  "sample_rate": 44100,
+  "voice_styles": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5"
+  ],
+  "vram_after_load_mb": null,
+  "status": "error",
+  "error": "ValueError('Number of texts (4) must match number of style vectors (1). Please provide one style per text.')"
+}

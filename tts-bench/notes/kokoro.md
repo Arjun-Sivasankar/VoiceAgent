@@ -68,7 +68,7 @@ VRAM: 12–24 GB recommended. **On our 8 GB 5060**: feasible only with `batch_si
 
 ## Custom voice clone experiment (2026-09-12)
 
-- Reference: `voice-samples/prepared/custom_reference.wav` (5.83 s); tool: `tools/kokoro-embed` running in the bench venv (+ librosa)
+- Reference: `voice-samples/prepared/custom_reference.wav` (5.83 s); tool: kokoro.embed (fetched separately into `tools/kokoro-embed`, configs now in `configs/kokoro-embed/`) running in the bench venv (+ librosa)
 - Fixes/environment: created `kokoro/voices/` (auto-select crashes without it); WavLM-Large + Kokoro weights cached in `models/hf-cache`
 - Training: auto-init from `bm_daniel` (WavLM dist 1.94), lr 2e-4, **early stop at step 5396/20000**, best loss **0.1978** (≤0.20 same-speaker threshold), 36.1 min (~0.37 s/step)
 - Style JSON `[1,256]` → standard voicepack via `bench/convert_kokoro_style.py` → `models/kokoro/voices/custom.pt` `[510,1,256]`

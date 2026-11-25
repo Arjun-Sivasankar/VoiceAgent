@@ -321,7 +321,7 @@ All of the following live in `web\index.html` (single file).
 | VU meters, waveform, corner readouts | `drawMeters`, `drawWaveform`, `drawBrackets` |
 | State machine + colors | `STATES`, `setState` |
 | Latency HUD (STT/TTS/TOTAL + avg) | `lat`, `drawLatency` |
-| JARVIS sound design (WebAudio) | `tone`, `sweep`, `sfx` |
+| HUD sound design (WebAudio) | `tone`, `sweep`, `sfx` |
 | Tools: time, web search (Wikipedia/DDG), weather (Open-Meteo), remember, recall | `TOOLS`, `execTool`, `webSearch`, `getWeather`, `runToolCall` |
 | Memory: facts + history in localStorage, injected into instructions | `loadFacts`, `saveFacts`, `pushHistory`, `memoryPreamble` |
 | Wake word "Hey agent" (SpeechRecognition) + push-to-talk (Space) | `startWake`, `triggerWake`, `closeGate`, key handlers |
@@ -386,12 +386,14 @@ Push-to-talk: hold Space. Attach images with the Image button or Ctrl+V.
 
 ### 2026-11-25: Public-release clean-up
 - Renamed the launchers to `run-voice-agent.ps1`, `start-voice-web.ps1`, `stop-voice-web.ps1`,
-  the bridge header to `X-Voice-Agent`, the default persona to "Assistant" and the wake word to
-  "Hey agent".
+  the bridge header to `X-Voice-Agent`, the personas to "Assistant", "Atlas" and "Nova", and the
+  wake word to "Hey agent".
 - Removed the cloned voicepacks, the Supertonic clone style and the upstream sample clip
   `TTS/ref_audio.wav` from the working tree. The launcher now uses `custom.pt` if present,
   else the stock voice `bm_fable`; Qwen3-TTS reference-audio paths fail with a clear error.
 - Added MIT LICENSE for own code and NOTICE for third-party components.
+- Removed the vendored kokoro.embed tool (no redistribution licence found); its clone configs moved
+  to `tts-bench/configs/kokoro-embed/`, and the tool is fetched separately.
 
 ### 2026-09-13 (latest+1): Duplicate tool-call fix
 - The server emits both `response.function_call_arguments.done` and
@@ -431,11 +433,11 @@ Push-to-talk: hold Space. Attach images with the Image button or Ctrl+V.
 - Patched `src/speech_to_speech/LLM/base_openai_compatible_language_model.py` for
   `S2S_LLM_EXTRA_HEADERS` (OpenCode Go session header).
 - Added `run-voice-agent.ps1` (Parakeet TDT + OpenCode Go + Kokoro custom voice).
-- Built `web/index.html`: JARVIS-style HUD with raw Realtime WebSocket client, inline mic
+- Built `web/index.html`: sci-fi style HUD with raw Realtime WebSocket client, inline mic
   worklet, playback scheduler, WebGL shader orb and line-spectrum Eye mode.
 - Added vendor libs: augmented-ui 2.0.0, anime.js 4.5.0.
 - Added `start-voice-web.ps1`, `stop-voice-web.ps1`, `test-ws-client.mjs`, `test-tools.mjs`.
-- Features added to the HUD: JARVIS sound design, tools (time/web/weather/remember/recall),
+- Features added to the HUD: sound design, tools (time/web/weather/remember/recall),
   persistent memory preamble + history, wake word with push-to-talk fallback, latency HUD,
   visual mode toggle, boosted tool-calling instructions.
 - Removed the rotating radar sweep; scaled the outer ring assembly down ~15%.

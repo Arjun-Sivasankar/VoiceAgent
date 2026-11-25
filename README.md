@@ -44,8 +44,8 @@ The running configuration: Silero VAD, Parakeet TDT 0.6B for speech recognition 
 |---|---|
 | `web/index.html`: the HUD (realtime WebSocket client, mic and playback worklets, WebGL orb, latency and token-cost readouts, tools for time, web search, weather and memory, personas, wake word and push-to-talk, image input) | `speech-to-speech/`: the VAD, STT, LLM and TTS pipeline and its realtime server (Hugging Face, Apache-2.0) |
 | `bridge/bridge.py`: the allow-listed desktop action bridge | `web/vendor/`: anime.js (MIT) and augmented-ui (BSD-2-Clause) |
-| `run-voice-agent.ps1`, `start-voice-web.ps1`, `stop-voice-web.ps1` and the `test-*.mjs` protocol tests | `tts-bench/tools/kokoro-embed/`: Kokoro style-vector extractor by Gyeongmin Kim (kdrkdrkdr/kokoro.embed) |
-| `tts-bench/bench/`, `tts-bench/notes/`, `tts-bench/results/` and the clone configs in `tts-bench/tools/kokoro-embed/configs/` | `tts-bench/tools/supertonic3-voice-clone/`: Supertonic-3 style trainer by Saurabh Verma (MIT, see its LICENSE and NOTICE) |
+| `run-voice-agent.ps1`, `start-voice-web.ps1`, `stop-voice-web.ps1` and the `test-*.mjs` protocol tests | kokoro.embed, the Kokoro style-vector extractor by Gyeongmin Kim: not included, fetched separately (see Voices) |
+| `tts-bench/bench/`, `tts-bench/notes/`, `tts-bench/results/` and the clone configs in `tts-bench/configs/kokoro-embed/` | `tts-bench/tools/supertonic3-voice-clone/`: Supertonic-3 style trainer by Saurabh Verma (MIT, see its LICENSE and NOTICE) |
 | Local patches inside `speech-to-speech/` (below) | `tts-bench/models/kokoro/voices/bm_george.pt`, `bf_emma.pt`: stock voices from [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0) |
 
 Local patches to the vendored pipeline:
@@ -84,8 +84,8 @@ The full notes, including the fine-tuning survey, the voice-cloning experiments 
 
 No cloned voice and no reference recording ships with this repository.
 
-- **Default:** the launcher uses the stock Kokoro voice `bm_fable`, which Kokoro downloads from `hexgrad/Kokoro-82M` on first use. The HUD's other two personas use the stock voices `bm_george` and `bf_emma`, bundled in `tts-bench/models/kokoro/voices/` from the same Apache-2.0 model repository.
-- **Your own voice:** you can build a Kokoro voicepack from a 3 to 10 second reference clip with `tts-bench/tools/kokoro-embed` (config template: `configs/custom.json`) and convert it with `tts-bench/bench/convert_kokoro_style.py`. Save it as `tts-bench/models/kokoro/voices/custom.pt` and the launcher picks it up automatically. To use any other voice, set `VOICEAGENT_KOKORO_VOICE` to a stock voice name or a `.pt` path.
+- **Default:** the launcher uses the stock Kokoro voice `bm_fable`, which Kokoro downloads from `hexgrad/Kokoro-82M` on first use. The HUD's Atlas and Nova personas use the stock voices `bm_george` and `bf_emma`, bundled in `tts-bench/models/kokoro/voices/` from the same Apache-2.0 model repository.
+- **Your own voice:** you can build a Kokoro voicepack from a 3 to 10 second reference clip with kokoro.embed by Gyeongmin Kim ([paper](https://doi.org/10.5281/zenodo.19646514)). It is not included in this repository because no licence for redistribution was found; fetch it separately into `tts-bench/tools/kokoro-embed/` (git-ignored) and run `python optimize_style.py <path-to>/tts-bench/configs/kokoro-embed/custom.json` there, after pointing `target_wav` at your clip. Convert the resulting style JSON with `tts-bench/bench/convert_kokoro_style.py`. Save it as `tts-bench/models/kokoro/voices/custom.pt` and the launcher picks it up automatically. To use any other voice, set `VOICEAGENT_KOKORO_VOICE` to a stock voice name or a `.pt` path.
 - **Consent:** the reference recording must be supplied by you, and you need the speaker's consent to clone it. Do not clone actors, public figures or anyone who has not agreed. Both cloning tools state the same terms in their READMEs. Custom voicepacks are git-ignored so they are not committed by accident.
 
 ## Running it

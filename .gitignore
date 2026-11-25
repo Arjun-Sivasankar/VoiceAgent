@@ -47,3 +47,6 @@ Thumbs.db
 tts-bench/models/kokoro/voices/custom*.pt
 tts-bench/models/supertonic-3/voice_styles/
 *.wav
+
+# Third-party voice-style tool, fetched separately (no licence found for redistribution)
+tts-bench/tools/kokoro-embed/

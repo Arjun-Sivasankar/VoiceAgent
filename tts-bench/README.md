@@ -6,7 +6,9 @@ Tracked here:
 
 - Kokoro and Supertonic-3 benchmark scripts (`bench/`)
 - Benchmark notes and CSV/JSON results (`notes/`, `results/`)
-- Third-party voice-style tools (`tools/kokoro-embed`, `tools/supertonic3-voice-clone`) and the clone configs in `tools/kokoro-embed/configs/`
+- The Supertonic-3 style trainer (`tools/supertonic3-voice-clone`, MIT) and the kokoro.embed clone configs (`configs/kokoro-embed/`)
+
+kokoro.embed itself (Gyeongmin Kim, https://doi.org/10.5281/zenodo.19646514) is not included because no redistribution licence was found. Fetch it into `tools/kokoro-embed/` (git-ignored) and pass it a config path from `configs/kokoro-embed/`.
 - The stock Kokoro voices `bm_george` and `bf_emma` from hexgrad/Kokoro-82M (Apache-2.0)
 
 Not tracked here:

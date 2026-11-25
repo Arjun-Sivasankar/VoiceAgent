@@ -12,9 +12,8 @@ Arjun Sivasankar's own code in this repository is licensed under the MIT License
 - tts-bench/tools/supertonic3-voice-clone/
   Copyright (c) 2026 Saurabh Verma, MIT License (see its LICENSE and NOTICE).
 
-- tts-bench/tools/kokoro-embed/
-  Kokoro voice style extractor by Gyeongmin Kim (kdrkdrkdr/kokoro.embed).
-  See the upstream project for its licence terms.
+- kokoro.embed (Kokoro voice style extractor by Gyeongmin Kim) is not included.
+  It is fetched separately; only the configs in tts-bench/configs/kokoro-embed/ are ours.
 
 - tts-bench/models/kokoro/voices/bm_george.pt, bf_emma.pt
   Stock voices from hexgrad/Kokoro-82M, Apache License, Version 2.0.

@@ -1,4 +1,4 @@
-# Supertonic 3 — local benchmark + finetuning notes
+# Supertonic 3: local benchmark + finetuning notes
 
 Date: 2026-09-12
 Device: RTX 5060 Laptop (8 GB, sm_120) · 16 GB RAM · Win 11 · Python 3.12 venv (`../venv`)
@@ -60,12 +60,12 @@ Metrics: synth time, RTF, x-realtime, chars/s, RSS, GPU VRAM (sampled via NVML),
 2. If a custom Supertonic voice is wanted: run `supertonic3-voice-clone` locally (~2.6 GB VRAM, minutes) rather than any cloud service.
 3. Re-check ORT GPU on each upgrade: pin `onnxruntime-gpu==1.22.0` until the CUDA 13 toolchain aligns with torch.
 
-## Ultron clone experiment (2026-09-12)
+## Custom voice clone experiment (2026-09-12)
 
-- Reference: `voice-samples/prepared/ultron_primary.wav` (5.83 s, 44.1 kHz, from the 21 s 4-line monologue; prep via `bench/prepare_voice.py`)
+- Reference: `voice-samples/prepared/custom_reference.wav` (5.83 s, 44.1 kHz, cut from a 21 s recording; prep via `bench/prepare_voice.py`)
 - Tool: `tools/supertonic3-voice-clone` in its own venv (Python 3.12, torch 2.9.1+cu128); model read through a junction to `models/supertonic-3`
 - Fixes applied: soundfile loader replaces torchaudio.load (torchcodec needs FFmpeg); `PYTHONIOENCODING=utf-8` for the emoji print; `torchcodec` uninstalled
 - Training: 3000 steps, lr 2e-4, auto-init from F1 (loss 0.923 → best **0.0431**), 59.2 min on the 5060 (~0.54 s/step), peak VRAM within 8 GB
-- Checkpoints every 500 steps in `tools/supertonic3-voice-clone/logs/ultron/`; final → `models/supertonic-3/voice_styles/ultron.json`
+- Checkpoints every 500 steps in `tools/supertonic3-voice-clone/logs/custom/`; final → `models/supertonic-3/voice_styles/custom.json`
 - Independent ECAPA eval (`bench/eval_similarity.py`, 14 sentences): cloned **mean cosine 0.845** (min 0.718, max 0.894, 14/14 ≥ 0.5) vs stock M1 **mean 0.002** — clone clearly targets the reference speaker
-- A/B samples: `audio/clones/st3_ultron/` vs `audio/clones/st3_M1/`
+- A/B samples: `audio/clones/st3_custom/` vs `audio/clones/st3_M1/`

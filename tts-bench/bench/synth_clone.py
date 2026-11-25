@@ -1,7 +1,7 @@
 """Synthesize the eval sentence set with a Supertonic style JSON (clone or stock preset).
 
 Usage:
-    python synth_clone.py --style <path.json> --name st3_ultron --device cuda
+    python synth_clone.py --style <path.json> --name st3_custom --device cuda
 """
 
 import argparse

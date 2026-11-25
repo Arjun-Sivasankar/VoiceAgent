@@ -139,6 +139,7 @@ class Qwen3TTSHandler(BaseHandler[TTSIn, TTSOut]):
         self.should_listen = should_listen
         self.requested_device = device
         self.ref_audio = ref_audio
+        self._check_ref_audio_exists(ref_audio)
         self.ref_spk = self._normalize_optional_path(ref_spk)
         self.ref_rvq = self._normalize_optional_path(ref_rvq)
         self.ref_text = ref_text
@@ -413,6 +414,20 @@ class Qwen3TTSHandler(BaseHandler[TTSIn, TTSOut]):
             if "base" in name:
                 return "base"
         return "base"
+
+    def _check_ref_audio_exists(self, ref_audio: Any) -> None:
+        # VoiceAgent: the upstream sample clip TTS/ref_audio.wav is not shipped in this
+        # repository, so fail early with a clear message when a local path is missing.
+        if not isinstance(ref_audio, (str, Path)) or not str(ref_audio):
+            return
+        if str(ref_audio).startswith(("http://", "https://", "data:")):
+            return
+        if self._resolve_audio_path(ref_audio) is None:
+            raise FileNotFoundError(
+                f"qwen3_tts_ref_audio not found: {ref_audio!r}. No reference clip ships with this "
+                "repository. Pass a recording you have the speaker's consent to use, or leave "
+                "qwen3_tts_ref_audio unset to use a built-in CustomVoice speaker."
+            )
 
     def _resolve_audio_path(self, audio: Any) -> Path | None:
         if not isinstance(audio, (str, Path)) or not audio:

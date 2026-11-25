@@ -10,7 +10,7 @@ ws.onopen = () => {
     type: "session.update",
     session: {
       type: "realtime",
-      instructions: "You are Ultron. Reply in one short sentence.",
+      instructions: "You are a helpful voice assistant. Reply in one short sentence.",
       audio: {
         input: { turn_detection: { type: "server_vad", interrupt_response: true } },
         output: {}

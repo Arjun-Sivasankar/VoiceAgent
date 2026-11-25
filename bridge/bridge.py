@@ -1,12 +1,12 @@
-"""Ultron local system bridge.
+"""VoiceAgent local system bridge.
 
 Loopback-only HTTP service that performs allow-listed desktop actions for the
-Ultron HUD (open apps/urls, media keys, volume, lock, screenshot, system info).
+VoiceAgent HUD (open apps/urls, media keys, volume, lock, screenshot, system info).
 
 Security model:
 - Binds 127.0.0.1 only.
 - CORS is granted only to the HUD origins, and every action requires the
-  custom header X-Ultron: 1 (a custom header forces a preflight, which other
+  custom header X-Voice-Agent: 1 (a custom header forces a preflight, which other
   origins fail), so drive-by localhost CSRF from a random website is blocked.
 - Actions are an explicit allowlist; there is no arbitrary command execution.
 """
@@ -191,7 +191,7 @@ ACTIONS = {
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UltronBridge/1.0"
+    server_version = "VoiceAgentBridge/1.0"
 
     def _cors(self) -> None:
         origin = self.headers.get("Origin", "")
@@ -199,7 +199,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Ultron")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Voice-Agent")
 
     def _json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload).encode("utf-8")
@@ -217,7 +217,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if urlparse(self.path).path == "/health":
-            self._json(200, {"ok": True, "service": "ultron-bridge"})
+            self._json(200, {"ok": True, "service": "voiceagent-bridge"})
             return
         self._json(404, {"ok": False, "error": "not found"})
 
@@ -225,8 +225,8 @@ class Handler(BaseHTTPRequestHandler):
         if urlparse(self.path).path != "/action":
             self._json(404, {"ok": False, "error": "not found"})
             return
-        if self.headers.get("X-Ultron") != "1":
-            self._json(403, {"ok": False, "error": "missing X-Ultron header"})
+        if self.headers.get("X-Voice-Agent") != "1":
+            self._json(403, {"ok": False, "error": "missing X-Voice-Agent header"})
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -255,7 +255,7 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> int:
     log("bridge starting")
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Ultron bridge listening on http://{HOST}:{PORT}", flush=True)
+    print(f"VoiceAgent bridge listening on http://{HOST}:{PORT}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

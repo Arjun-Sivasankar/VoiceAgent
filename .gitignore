@@ -42,3 +42,8 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Cloned voices and reference recordings (user-supplied, consent required)
+tts-bench/models/kokoro/voices/custom*.pt
+tts-bench/models/supertonic-3/voice_styles/
+*.wav

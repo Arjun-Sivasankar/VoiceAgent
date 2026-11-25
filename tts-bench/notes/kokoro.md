@@ -1,4 +1,4 @@
-# Kokoro-82M — local benchmark + finetuning notes
+# Kokoro-82M: local benchmark + finetuning notes
 
 Date: 2026-09-12
 Device: RTX 5060 Laptop (8 GB, sm_120) · 16 GB RAM · Win 11 · Python 3.12 venv (`../venv`)
@@ -66,20 +66,20 @@ VRAM: 12–24 GB recommended. **On our 8 GB 5060**: feasible only with `batch_si
 2. If quality is insufficient, rent a 24 GB+ GPU for kikiri-tts S1+S2 (~1.5 h for 1k clips).
 3. Extract voicepack, drop into `models/kokoro/voices/`, benchmark it with this rig before use.
 
-## Ultron clone experiment (2026-09-12)
+## Custom voice clone experiment (2026-09-12)
 
-- Reference: `voice-samples/prepared/ultron_primary.wav` (5.83 s); tool: `tools/kokoro-embed` running in the bench venv (+ librosa)
+- Reference: `voice-samples/prepared/custom_reference.wav` (5.83 s); tool: `tools/kokoro-embed` running in the bench venv (+ librosa)
 - Fixes/environment: created `kokoro/voices/` (auto-select crashes without it); WavLM-Large + Kokoro weights cached in `models/hf-cache`
 - Training: auto-init from `bm_daniel` (WavLM dist 1.94), lr 2e-4, **early stop at step 5396/20000**, best loss **0.1978** (≤0.20 same-speaker threshold), 36.1 min (~0.37 s/step)
-- Style JSON `[1,256]` → standard voicepack via `bench/convert_kokoro_style.py` → `models/kokoro/voices/ultron.pt` `[510,1,256]`
+- Style JSON `[1,256]` → standard voicepack via `bench/convert_kokoro_style.py` → `models/kokoro/voices/custom.pt` `[510,1,256]`
 - Independent ECAPA eval (`bench/eval_similarity.py`, 14 sentences):
-  - kokoro_ultron: **mean 0.470** (min 0.357 / max 0.536)
+  - kokoro_custom: **mean 0.470** (min 0.357 / max 0.536)
   - am_michael stock baseline: mean 0.244
-  - st3_ultron (Supertonic, same reference): mean 0.845
+  - st3_custom (Supertonic, same reference): mean 0.845
 - Kokoro's WavLM-space loss converged to the paper's same-speaker range; **Supertonic clone is clearly stronger on this reference** (better identity model + native style vectors). Use Kokoro clone if a specific Kokoro prosody/tempo is wanted.
-- Samples: `audio/clones/kokoro_ultron/` vs `audio/clones/kokoro_am_michael/`
-- **Pacing fix (same day):** default rendering was rushed (~3.4–5.3 s per in-domain line vs stock 4.3–6.3 s). `bench/synth_clone_kokoro.py` now supports `--pause <s>` (silence at sentence boundaries) and `--speed`; paced variants (`--pause 0.4 --speed 0.95`) are in `audio/clones/kokoro_ultron_paced/` and `kokoro_am_michael_paced/`. Voice identity unchanged (same style vector).
-- **Deep run / v2 (same day, later):** resumed from the v1 checkpoint (step 5000) with `configs/ultron_deep.json` (lr 1e-4, early-stop target loss <=0.12). **Plateau-stopped at step 11,846** (best **0.1619** at step 10,346; loss flattened ~0.17 with LR decayed to 3e-6), 64.6 min wall (incl. a ~34 min machine-sleep gap). Only the style vector was optimized; no model weights changed.
-  - Packaged `ultron_final.json` -> `models/kokoro/voices/ultron.pt` (v1 preserved as `ultron_v1.pt`).
+- Samples: `audio/clones/kokoro_custom/` vs `audio/clones/kokoro_am_michael/`
+- **Pacing fix (same day):** default rendering was rushed (~3.4–5.3 s per in-domain line vs stock 4.3–6.3 s). `bench/synth_clone_kokoro.py` now supports `--pause <s>` (silence at sentence boundaries) and `--speed`; paced variants (`--pause 0.4 --speed 0.95`) are in `audio/clones/kokoro_custom_paced/` and `kokoro_am_michael_paced/`. Voice identity unchanged (same style vector).
+- **Deep run / v2 (same day, later):** resumed from the v1 checkpoint (step 5000) with `configs/custom_deep.json` (lr 1e-4, early-stop target loss <=0.12). **Plateau-stopped at step 11,846** (best **0.1619** at step 10,346; loss flattened ~0.17 with LR decayed to 3e-6), 64.6 min wall (incl. a ~34 min machine-sleep gap). Only the style vector was optimized; no model weights changed.
+  - Packaged `custom_final.json` -> `models/kokoro/voices/custom.pt` (v1 preserved as `custom_v1.pt`).
   - Independent ECAPA eval (14 sentences, same reference): **mean 0.508** (min 0.428 / max 0.572, 9/14 >=0.5) vs v1 0.470 (paced) / 0.470 (plain) and stock am_michael 0.247. Modest but clear identity gain; still well below the Supertonic clone (0.845).
-  - Samples: `audio/clones/kokoro_ultron_v2/` (rendered `--pause 0.4 --speed 0.95`).
+  - Samples: `audio/clones/kokoro_custom_v2/` (rendered `--pause 0.4 --speed 0.95`).

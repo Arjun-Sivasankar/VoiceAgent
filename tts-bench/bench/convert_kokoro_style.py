@@ -1,7 +1,7 @@
 """Convert a kokoro.embed style JSON ([1,256]) into a standard Kokoro voicepack .pt ([510,1,256]).
 
 Usage:
-    python convert_kokoro_style.py --json <style.json> --out models/kokoro/voices/ultron.pt
+    python convert_kokoro_style.py --json <style.json> --out models/kokoro/voices/custom.pt
 """
 
 import argparse

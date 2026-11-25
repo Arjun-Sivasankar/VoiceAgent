@@ -1,4 +1,4 @@
-# Ultron Voice Agent — Replication Guide
+# VoiceAgent: replication guide
 
 This guide was ported from the original T9 deployment into the `VoiceAgent` repository.
 The launchers now resolve paths relative to the repository and keep runtime state under
@@ -7,7 +7,7 @@ machine on which the original setup was built.
 
 Last updated: 2026-09-13
 
-This document is the single source of truth for rebuilding the Ultron voice agent on another
+This document is the single source of truth for rebuilding the voice agent on another
 machine (or after a disk wipe). It covers the cloned pipeline, every modification made to it,
 the environment, the web UI, and a changelog.
 
@@ -24,7 +24,7 @@ Speech pipeline (upstream: https://github.com/huggingface/speech-to-speech, v1.0
       -> WebSocket ws://127.0.0.1:8765/v1/realtime  (OpenAI Realtime protocol)
       -> Silero VAD v5 -> Parakeet TDT 0.6B (STT, CUDA)
       -> OpenCode Go API (LLM, OpenAI-compatible chat completions)
-      -> Kokoro-82M with the custom "Ultron" voicepack (TTS, CUDA)
+      -> Kokoro-82M (TTS, CUDA); stock voice, or a custom voicepack if you built one
       -> PCM16 audio back over the same WebSocket -> browser playback + HUD
 
 | Component | Location |
@@ -49,14 +49,14 @@ Ports: backend `8765`, web UI `7860`, system bridge `7870`. All bind to `127.0.0
 
 - Windows 11, NVIDIA GPU with CUDA (built for RTX 5060 Laptop 8 GB, sm_120), driver supporting CUDA 12.8.
 - Git, Node.js (only for the protocol test scripts), internet for first model downloads.
-- The custom Kokoro voicepack `ultron.pt` (see section 5). It is not derivable from the repo.
+- Optional: a custom Kokoro voicepack `custom.pt` (see Step 6). None ships with the repo; without it the stock voice `bm_fable` is used.
 - No API key is required for STT/TTS; the LLM uses the OpenCode Go subscription key already on the machine.
 
 ---
 
 ## 3. Replication steps
 
-### Step 1 — Python 3.12 on D:
+### Step 1: Python 3.12 on D:
 
 The upstream venv format expects Python 3.12. On this machine the base runtime was copied from
 `C:\Users\arjun\AppData\Local\Programs\Python\Python312` to `D:\Python312` (the python.org
@@ -66,7 +66,7 @@ installer refuses to install a second copy of the same version).
 
 Verify: `& D:\Python312\python.exe -c "import sys; print(sys.version)"`
 
-### Step 2 — Clone the pipeline at the pinned commit
+### Step 2: Clone the pipeline at the pinned commit
 
     git clone --depth 1 https://github.com/huggingface/speech-to-speech.git D:\voice-agent\speech-to-speech
 
@@ -75,7 +75,7 @@ Built against commit `16d7f98` (v1.0.0, 2026-09-06). If you need the exact tree:
     git fetch --depth 1 origin 16d7f98
     git checkout 16d7f98
 
-### Step 3 — Virtualenv and dependencies
+### Step 3: Virtualenv and dependencies
 
     cd D:\voice-agent\speech-to-speech
     D:\Python312\python.exe -m venv .venv
@@ -90,11 +90,11 @@ Notes:
 - Reference versions: torch 2.11.0+cu128, transformers 5.17.0, kokoro 0.9.4, nano-parakeet 0.2.1,
   faster-qwen3-tts 0.4.0, onnxruntime 1.30.0, numpy 2.5.3, Python 3.12.9.
 
-### Step 4 — Apply the pipeline patches (two files)
+### Step 4: Apply the pipeline patches (two files)
 
 Only two upstream files are modified. Re-apply both after any `git pull`.
 
-**Patch A — extra LLM headers** (`src/speech_to_speech/LLM/base_openai_compatible_language_model.py`)
+**Patch A: extra LLM headers** (`src/speech_to_speech/LLM/base_openai_compatible_language_model.py`)
 
     --- a/src/speech_to_speech/LLM/base_openai_compatible_language_model.py
     +++ b/src/speech_to_speech/LLM/base_openai_compatible_language_model.py
@@ -128,7 +128,7 @@ Only two upstream files are modified. Re-apply both after any `git pull`.
 Why: the OpenCode Go endpoint requires an `x-opencode-session` routing header on every request.
 JSON in `S2S_LLM_EXTRA_HEADERS` is parsed and passed as `default_headers`.
 
-**Patch B — sanitize orphaned tool messages** (`src/speech_to_speech/LLM/chat_completions_language_model.py`)
+**Patch B: sanitize orphaned tool messages** (`src/speech_to_speech/LLM/chat_completions_language_model.py`)
 
 Add a module-level helper before `_chat_messages` and call it at the end of `_chat_messages`
 (which now also keeps the existing per-message normalisation):
@@ -172,7 +172,7 @@ tool_calls so the conversation keeps working. Verified with `test-tools-followup
 
 To recover after `git pull`: re-apply both patches or keep our copies of the two files.
 
-### Step 5 — Models and caches
+### Step 5: Models and caches
 
 No manual model downloads are required. On first run the pipeline fetches:
 
@@ -188,33 +188,36 @@ The shared HF cache is reused from the TTS project to avoid re-downloading Kokor
 
     D:\tts-bench\models\hf-cache
 
-### Step 6 — The Ultron voicepack
+### Step 6: Optional custom voicepack
 
-- Active file: `D:\tts-bench\models\kokoro\voices\ultron.pt` (shape `[510,1,256]`, float32).
-- Produced by `kdrkdrkdr/kokoro.embed` style-vector optimization against a reference clip;
-  v2 (deep run) is the current pack, v1 preserved as `ultron_v1.pt`.
-- Full provenance, training configs, ECAPA scores: `D:\tts-bench\notes\kokoro.md`.
+- Location: `tts-bench\models\kokoro\voices\custom.pt` (shape `[510,1,256]`, float32). Git-ignored.
+- Produced by `kdrkdrkdr/kokoro.embed` style-vector optimization against a 3 to 10 s reference
+  clip that you supply and have the speaker's consent to use.
+- Method, training configs and ECAPA similarity scores from the original experiment:
+  `tts-bench\notes\kokoro.md`.
+- If the file is absent the launcher falls back to the stock voice `bm_fable`;
+  `VOICEAGENT_KOKORO_VOICE` overrides both.
 - The pipeline loads it by absolute path via `--kokoro_voice`; `kokoro`'s `load_single_voice`
   accepts a `.pt` path directly (no copy into the package needed).
 
-### Step 7 — LLM endpoint (OpenCode Go)
+### Step 7: LLM endpoint (OpenCode Go)
 
 - Base URL: `https://opencode.ai/zen/go/v1` (OpenAI-compatible, catalog id `opencode-go`).
 - Model: `deepseek-v4.1-flash` with `reasoning_effort=none` for low voice latency.
-- Required extra header: `x-opencode-session` (any stable id, e.g. `ultron-voice-agent`).
+- Required extra header: `x-opencode-session` (any stable id, e.g. `voice-agent`).
 - Key: read at launch from the OpenCode login store:
   `%USERPROFILE%\.local\share\opencode\auth.json` -> `opencode-go.key`.
   It is never copied or hardcoded.
 
-### Step 8 — Launcher
+### Step 8: Launcher
 
-`D:\voice-agent\run-ultron-agent.ps1` is the authoritative command. Key contents:
+`D:\voice-agent\run-voice-agent.ps1` is the authoritative command. Key contents:
 
     $env:HF_HOME    = "D:\tts-bench\models\hf-cache"
     $env:TORCH_HOME = "D:\voice-agent\torch-cache"
     $env:NLTK_DATA  = "D:\voice-agent\nltk_data"
     $env:PYTHONUTF8 = "1"
-    $env:S2S_LLM_EXTRA_HEADERS = '{"x-opencode-session":"ultron-voice-agent"}'
+    $env:S2S_LLM_EXTRA_HEADERS = '{"x-opencode-session":"voice-agent"}'
     $opencodeKey = (Get-Content "$env:USERPROFILE\.local\share\opencode\auth.json" -Raw |
                     ConvertFrom-Json).'opencode-go'.key
 
@@ -228,7 +231,7 @@ with `$common` flags:
     --responses_api_api_key <key>  --model_name deepseek-v4.1-flash
     --responses_api_reasoning_effort none  --responses_api_stream
     --tts kokoro  --kokoro_device cuda
-    --kokoro_voice D:\tts-bench\models\kokoro\voices\ultron.pt
+    --kokoro_voice D:\tts-bench\models\kokoro\voices\custom.pt
     --kokoro_lang_code b  --kokoro_speed 0.95
     --num_pipelines 2
 
@@ -236,7 +239,7 @@ Modes: no argument = `local` (mic + speakers), or `serve` (API only).
 Note: `--kokoro_lang_code b` must match the STT language mapping (`en` -> `b`), otherwise the
 handler switches voice on the first turn and falls back to a stock preset.
 
-### Step 9 — Web HUD
+### Step 9: Web HUD
 
 Files (all on D):
 
@@ -245,8 +248,8 @@ Files (all on D):
 | `web\index.html` | entire client: WebSocket, mic worklet, playback, HUD, orb, tools, memory, wake word |
 | `web\vendor\augmented-ui.min.css` | sci-fi clipped HUD frames (v2.0.0) |
 | `web\vendor\anime.umd.min.js` | animation engine (v4.5.0, MIT) for boot, springs, shockwaves |
-| `start-ultron-web.ps1` | starts backend + static server, waits, opens browser |
-| `stop-ultron-web.ps1` | kills listeners on 8765/7860 |
+| `start-voice-web.ps1` | starts backend + static server, waits, opens browser |
+| `stop-voice-web.ps1` | kills listeners on 8765/7860 |
 | `test-ws-client.mjs` | Realtime protocol smoke test (text + audio events) |
 | `test-tools.mjs` | tool-call round-trip test |
 
@@ -256,16 +259,16 @@ Serve the HUD (any static server works; mic requires a secure context, so use lo
 
 Then open `http://127.0.0.1:7860`.
 
-### Step 10 — Verification
+### Step 10: Verification
 
-    powershell -ExecutionPolicy Bypass -File D:\voice-agent\run-ultron-agent.ps1 serve
+    powershell -ExecutionPolicy Bypass -File D:\voice-agent\run-voice-agent.ps1 serve
     node D:\voice-agent\test-ws-client.mjs    # expect session.updated, transcript, 18+ output_audio deltas, response.done
     node D:\voice-agent\test-tools.mjs        # expect a function_call, then a spoken answer
 
-### Step 11 — System bridge (optional but recommended)
+### Step 11: System bridge (optional but recommended)
 
 `D:\voice-agent\bridge\bridge.py` is a stdlib-only loopback HTTP service that performs
-allow-listed desktop actions for the HUD. Start it via `start-ultron-web.ps1`, or manually:
+allow-listed desktop actions for the HUD. Start it via `start-voice-web.ps1`, or manually:
 
     D:\Python312\python.exe D:\voice-agent\bridge\bridge.py
 
@@ -282,7 +285,7 @@ Endpoints (all on `http://127.0.0.1:7870`):
 | `POST /action` | `{"action":"screenshot"}` | saves a PNG to `D:\voice-agent\screenshots`, returns path |
 
 Security model: loopback bind; CORS granted only to `http://127.0.0.1:7860` /
-`http://localhost:7860`; every action requires the `X-Ultron: 1` header. A custom header
+`http://localhost:7860`; every action requires the `X-Voice-Agent: 1` header. A custom header
 forces a CORS preflight that other origins fail, which blocks drive-by localhost CSRF.
 There is no arbitrary command execution; the app list is a fixed map in `APP_MAP`.
 
@@ -296,7 +299,7 @@ There is no arbitrary command execution; the app list is a fixed map in `APP_MAP
 | `TORCH_HOME` | `D:\voice-agent\torch-cache` | Silero VAD via torch hub |
 | `NLTK_DATA` | `D:\voice-agent\nltk_data` | LLM sentence tokenizer |
 | `PYTHONUTF8` | `1` | console encoding on Windows |
-| `S2S_LLM_EXTRA_HEADERS` | `{"x-opencode-session":"ultron-voice-agent"}` | patched LLM client |
+| `S2S_LLM_EXTRA_HEADERS` | `{"x-opencode-session":"voice-agent"}` | patched LLM client |
 | `PIP_CACHE_DIR` | `D:\voice-agent\pip-cache` | installs (keeps C: clean) |
 
 ---
@@ -321,7 +324,7 @@ All of the following live in `web\index.html` (single file).
 | JARVIS sound design (WebAudio) | `tone`, `sweep`, `sfx` |
 | Tools: time, web search (Wikipedia/DDG), weather (Open-Meteo), remember, recall | `TOOLS`, `execTool`, `webSearch`, `getWeather`, `runToolCall` |
 | Memory: facts + history in localStorage, injected into instructions | `loadFacts`, `saveFacts`, `pushHistory`, `memoryPreamble` |
-| Wake word "Ultron" (SpeechRecognition) + push-to-talk (Space) | `startWake`, `triggerWake`, `closeGate`, key handlers |
+| Wake word "Hey agent" (SpeechRecognition) + push-to-talk (Space) | `startWake`, `triggerWake`, `closeGate`, key handlers |
 | Visual mode toggle, sound toggle, wake toggle | dock buttons `#vis`, `#sfx`, `#wake` |
 | Boot choreography + spring entrances (anime.js) | `bootUI`, `addBubble` |
 | Personas: prompt + voicepack + accent hue per persona | `PERSONAS`, `applyPersona`, `#persona` |
@@ -342,13 +345,13 @@ Tool-call protocol used (OpenAI Realtime GA):
 ## 6. Runbook
 
     # start everything (backend + HUD) and open the browser
-    powershell -ExecutionPolicy Bypass -File D:\voice-agent\start-ultron-web.ps1
+    powershell -ExecutionPolicy Bypass -File D:\voice-agent\start-voice-web.ps1
 
     # backend only (mic client or API clients)
-    powershell -ExecutionPolicy Bypass -File D:\voice-agent\run-ultron-agent.ps1 serve
+    powershell -ExecutionPolicy Bypass -File D:\voice-agent\run-voice-agent.ps1 serve
 
     # stop everything
-    powershell -ExecutionPolicy Bypass -File D:\voice-agent\stop-ultron-web.ps1
+    powershell -ExecutionPolicy Bypass -File D:\voice-agent\stop-voice-web.ps1
 
     # logs
     D:\voice-agent\logs\serve.err.log      # pipeline log
@@ -373,15 +376,24 @@ Push-to-talk: hold Space. Attach images with the Image button or Ctrl+V.
 - Memory lives in the browser profile's localStorage (per origin), not server-side.
 - Web search is Wikipedia + DuckDuckGo Instant Answer (CORS-safe, no API key). For richer
   results, add a server-side search proxy with a real search API key.
-- The "Ultron" voice is cloned from an actor's performance; keep it private, do not distribute
-  or use commercially.
+- No cloned voice or reference recording is distributed with the repository. Clone only voices
+  you have the speaker's consent to use.
 - The LLM costs money via the OpenCode Go subscription; audio replies are short by design.
 
 ---
 
 ## 8. Changelog
 
-### 2026-09-13 (latest+1) — Duplicate tool-call fix
+### 2026-11-25: Public-release clean-up
+- Renamed the launchers to `run-voice-agent.ps1`, `start-voice-web.ps1`, `stop-voice-web.ps1`,
+  the bridge header to `X-Voice-Agent`, the default persona to "Assistant" and the wake word to
+  "Hey agent".
+- Removed the cloned voicepacks, the Supertonic clone style and the upstream sample clip
+  `TTS/ref_audio.wav` from the working tree. The launcher now uses `custom.pt` if present,
+  else the stock voice `bm_fable`; Qwen3-TTS reference-audio paths fail with a clear error.
+- Added MIT LICENSE for own code and NOTICE for third-party components.
+
+### 2026-09-13 (latest+1): Duplicate tool-call fix
 - The server emits both `response.function_call_arguments.done` and
   `response.output_item.done` for the same function_call (verified with `test-tool-events.mjs`),
   which made the HUD execute every tool twice, send two `function_call_output` items and
@@ -390,7 +402,7 @@ Push-to-talk: hold Space. Attach images with the Image button or Ctrl+V.
 - Added a bounded retry for transient "response in progress / outputs pending" errors instead
   of surfacing them as a hard error state.
 
-### 2026-09-13 (latest) — Tool-history fix, cleaner HUD, core shift
+### 2026-09-13 (latest): Tool-history fix, cleaner HUD, core shift
 - Fixed the provider 400 after tool calls: patched `chat_completions_language_model.py` to
   sanitize orphaned `tool` messages (Patch B above) and made the HUD wait for the active
   response before issuing the post-tool `response.create` (`continueAfterTool`).
@@ -400,39 +412,39 @@ Push-to-talk: hold Space. Attach images with the Image button or Ctrl+V.
 - The center core (Eye or Reactor) now shifts smoothly to the left while chat messages are
   present and returns to center when the feed is cleared.
 
-### 2026-09-13 (later) — Bridge, personas, cost HUD, image input
+### 2026-09-13 (later): Bridge, personas, cost HUD, image input
 - Added `bridge\bridge.py`: loopback allow-listed desktop control (open apps/urls, media and
-  volume keys, lock, screenshot, system info) with `X-Ultron` header gate and origin-locked CORS.
-- Wired `start-ultron-web.ps1` / `stop-ultron-web.ps1` for the bridge on port 7870.
+  volume keys, lock, screenshot, system info) with `X-Voice-Agent` header gate and origin-locked CORS.
+- Wired `start-voice-web.ps1` / `stop-voice-web.ps1` for the bridge on port 7870.
 - Added six system-control tools to the HUD plus a bridge online/offline indicator.
 - Added token/cost tracking from `response.done` usage and a per-turn + session cost HUD
   (prices: input $0.15/M, output $0.60/M, cache read $0.003/M).
-- Added personas Ultron / JARVIS / FRIDAY: persona-specific system prompt, Kokoro voicepack
-  (ultron.pt, bm_george, bf_emma) and HUD accent hue, cycled with the Persona button and
+- Added three personas: persona-specific system prompt, Kokoro voicepack
+  (custom voicepack, bm_george, bf_emma) and HUD accent hue, cycled with the Persona button and
   persisted in localStorage.
 - Added image input: Image button and Ctrl+V paste, downscaled to 1024 px JPEG and sent as
   `input_image` content; renders a thumbnail bubble in the feed.
 
-### 2026-09-13 — Voice agent + HUD
+### 2026-09-13: Voice agent + HUD
 - Cloned `huggingface/speech-to-speech` at `16d7f98` (v1.0.0) into `D:\voice-agent\speech-to-speech`.
 - Created venv on `D:\Python312`; installed torch 2.11.0+cu128 and `-e .[kokoro]`.
 - Patched `src/speech_to_speech/LLM/base_openai_compatible_language_model.py` for
   `S2S_LLM_EXTRA_HEADERS` (OpenCode Go session header).
-- Added `run-ultron-agent.ps1` (Parakeet TDT + OpenCode Go + Kokoro Ultron voice).
+- Added `run-voice-agent.ps1` (Parakeet TDT + OpenCode Go + Kokoro custom voice).
 - Built `web/index.html`: JARVIS-style HUD with raw Realtime WebSocket client, inline mic
   worklet, playback scheduler, WebGL shader orb and line-spectrum Eye mode.
 - Added vendor libs: augmented-ui 2.0.0, anime.js 4.5.0.
-- Added `start-ultron-web.ps1`, `stop-ultron-web.ps1`, `test-ws-client.mjs`, `test-tools.mjs`.
+- Added `start-voice-web.ps1`, `stop-voice-web.ps1`, `test-ws-client.mjs`, `test-tools.mjs`.
 - Features added to the HUD: JARVIS sound design, tools (time/web/weather/remember/recall),
   persistent memory preamble + history, wake word with push-to-talk fallback, latency HUD,
   visual mode toggle, boosted tool-calling instructions.
 - Removed the rotating radar sweep; scaled the outer ring assembly down ~15%.
 
-### 2026-09-12 — Voice work (tts-bench, prerequisite)
+### 2026-09-12: Voice work (tts-bench, prerequisite)
 - Kokoro and Supertonic-3 benchmarks on the RTX 5060; both models stored locally.
-- Ultron voice cloned for both models; Kokoro deep run produced `ultron.pt` (v2).
+- Custom voice clone experiment for both models; Kokoro deep run produced a v2 voicepack.
 - See `D:\tts-bench\notes\kokoro.md` and `notes\supertonic-3.md` for details.
 
-### 2026-09-13 — Storage migration
+### 2026-09-13: Storage migration
 - Moved `tts-bench` from C: to `D:\tts-bench`; made both venvs self-contained on `D:\Python312`.
 - Cleared pip and model caches from C: (about 30 GB freed).

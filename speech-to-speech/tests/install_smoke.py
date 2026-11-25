@@ -7,7 +7,6 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path
 
 
 def _require_modules(modules: list[str]) -> None:
@@ -102,7 +101,6 @@ def _run_installed_cli_help() -> None:
 
 
 def _validate_package_defaults() -> None:
-    import speech_to_speech
     from speech_to_speech.arguments_classes.module_arguments import ModuleArguments
     from speech_to_speech.arguments_classes.qwen3_tts_arguments import Qwen3TTSHandlerArguments
     from speech_to_speech.arguments_classes.responses_api_language_model_arguments import (
@@ -144,10 +142,8 @@ def _validate_package_defaults() -> None:
     assert vad_args.realtime_processing_pause == 0.5
     assert vad_args.smart_turn is True
 
-    package_root = Path(speech_to_speech.__file__).resolve().parent
-    ref_audio = package_root / "TTS" / "ref_audio.wav"
-    if not ref_audio.exists():
-        raise RuntimeError(f"Packaged Qwen3-TTS reference audio is missing: {ref_audio}")
+    # VoiceAgent: the upstream sample clip TTS/ref_audio.wav is intentionally not shipped,
+    # so the packaged-reference-audio check is skipped here.
 
 
 def _validate_empty_qwen_ref_audio_arg() -> None:

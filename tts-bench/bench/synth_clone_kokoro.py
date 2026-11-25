@@ -1,7 +1,7 @@
 """Synthesize the eval sentence set with a Kokoro voice (stock preset or cloned voicepack).
 
 Usage:
-    python synth_clone_kokoro.py --voice ultron --name kokoro_ultron --device cuda
+    python synth_clone_kokoro.py --voice custom --name kokoro_custom --device cuda
     python synth_clone_kokoro.py --voice am_michael --name kokoro_am_michael
 """
 

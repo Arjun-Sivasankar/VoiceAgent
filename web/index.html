@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>ULTRON — Voice Interface</title>
+<title>VoiceAgent - Voice Interface</title>
 <link rel="stylesheet" href="vendor/augmented-ui.min.css" />
 <style>
   :root {
@@ -143,7 +143,7 @@
 <div class="hud">
   <div class="top">
     <div class="brand">
-      <div class="logo">Ultron</div>
+      <div class="logo">Assistant</div>
       <div class="sub">Voice Interface</div>
     </div>
     <div id="status" class="pill" data-augmented-ui="tl-clip br-clip border">idle</div>
@@ -155,7 +155,7 @@
       <button id="mute" class="btn" data-augmented-ui="tl-clip br-clip border" disabled>Mute</button>
       <button id="sfx" class="btn" data-augmented-ui="tl-clip br-clip border">Sound</button>
       <button id="wake" class="btn" data-augmented-ui="tl-clip br-clip border">Wake: Off</button>
-      <button id="persona" class="btn" data-augmented-ui="tl-clip br-clip border">Persona: Ultron</button>
+      <button id="persona" class="btn" data-augmented-ui="tl-clip br-clip border">Persona: Assistant</button>
       <button id="image" class="btn" data-augmented-ui="tl-clip br-clip border">Image</button>
       <input id="file" type="file" accept="image/*" hidden />
       <button id="vis" class="btn" data-augmented-ui="tl-clip br-clip border">View: Eye</button>
@@ -175,7 +175,7 @@ const CONFIG = {
   micChunkMs: 40,
   greet: true,
   instructions:
-    "You are Ultron, a brilliant, calm and quietly menacing AI. " +
+    "You are a calm, precise voice assistant. " +
     "Speak in short confident sentences with dry wit. " +
     "Always keep replies under three sentences because they are spoken aloud. " +
     "Never use markdown, lists, emojis or stage directions."
@@ -202,8 +202,8 @@ let gateOpen = true;
 let wakeActive = false;
 let wakeTimer = 0;
 let hintTimer = 0;
-let personaId = "ultron";
-try { personaId = localStorage.getItem("ultron.persona") || "ultron"; } catch (e) {}
+let personaId = "assistant";
+try { personaId = localStorage.getItem("voiceagent.persona") || "assistant"; } catch (e) {}
 
 const A = window.anime || null;
 const boot = { v: 1 };
@@ -211,7 +211,7 @@ const pulse = { v: 0 };
 const coreShift = { v: 0 };
 const hud = { hue: 0, orbit: 0, offset: 0 };
 let visualMode = "eye";
-try { visualMode = localStorage.getItem("ultron.visual") || "eye"; } catch (e) {}
+try { visualMode = localStorage.getItem("voiceagent.visual") || "eye"; } catch (e) {}
 visBtn.textContent = "View: " + (visualMode === "eye" ? "Eye" : "Reactor");
 if (A) {
   A.animate(hud, { hue: 360, duration: 26000, loop: true, ease: "linear" });
@@ -776,7 +776,7 @@ function drawBrackets(t) {
   g.textAlign = "left";
   g.textBaseline = "top";
   g.fillStyle = rgba(col, 0.55);
-  g.fillText("ULTRON-OS // NEURAL LINK", 26, H - 24);
+  g.fillText("VOICEAGENT // NEURAL LINK", 26, H - 24);
   g.textAlign = "right";
   g.fillText("STT: PARAKEET // TTS: KOKORO // BRAIN: OPENCODE-GO", W - 26, H - 24);
 }
@@ -869,7 +869,7 @@ function addBubble(role, text, key, partial) {
   el.setAttribute("data-augmented-ui", "tl-clip br-clip border");
   const who = document.createElement("span");
   who.className = "who";
-  who.textContent = role === "user" ? "You" : role === "tool" ? "Tool" : "Ultron";
+  who.textContent = role === "user" ? "You" : role === "tool" ? "Tool" : "Agent";
   const body = document.createElement("div");
   body.textContent = text;
   el.appendChild(who);
@@ -973,8 +973,8 @@ const sfx = {
   error() { sweep(240, 110, 0.4, 0, "sawtooth", 0.25); }
 };
 
-const FACTS_KEY = "ultron.facts";
-const HISTORY_KEY = "ultron.history";
+const FACTS_KEY = "voiceagent.facts";
+const HISTORY_KEY = "voiceagent.history";
 function loadFacts() {
   try { return JSON.parse(localStorage.getItem(FACTS_KEY) || "{}"); } catch (e) { return {}; }
 }
@@ -1000,11 +1000,13 @@ function memoryPreamble() {
 }
 
 const PERSONAS = {
-  ultron: {
-    label: "Ultron",
+  assistant: {
+    label: "Assistant",
     hue: 0,
-    voice: "tts-bench\\models\\kokoro\\voices\\ultron.pt",
-    instructions: "You are Ultron, a brilliant, calm and quietly menacing AI. Speak in short confident sentences with dry wit. Always keep replies under three sentences because they are spoken aloud. Never use markdown, lists, emojis or stage directions. Use tools when useful: web search, weather, time, memory, and computer control. Only perform system actions when the user explicitly asks."
+    // No voice override: the backend keeps the voice it was launched with
+    // (tts-bench/models/kokoro/voices/custom.pt if you created one, else stock bm_fable).
+    voice: undefined,
+    instructions: "You are a calm, precise voice assistant. Speak in short confident sentences with dry wit. Always keep replies under three sentences because they are spoken aloud. Never use markdown, lists, emojis or stage directions. Use tools when useful: web search, weather, time, memory, and computer control. Only perform system actions when the user explicitly asks."
   },
   jarvis: {
     label: "JARVIS",
@@ -1039,7 +1041,7 @@ checkBridge();
 async function bridgeCall(action, args) {
   const res = await fetch(BRIDGE_URL + "/action", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Ultron": "1" },
+    headers: { "Content-Type": "application/json", "X-Voice-Agent": "1" },
     body: JSON.stringify({ action: action, args: args || {} })
   });
   const json = await res.json();
@@ -1187,7 +1189,7 @@ function startWake() {
   recog.onresult = (event) => {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const text = event.results[i][0].transcript.toLowerCase();
-      if (/(^|[^a-z])(hey\s+)?ultron([^a-z]|$)/.test(text)) triggerWake();
+      if (/(^|[^a-z])hey\s+agent([^a-z]|$)/.test(text)) triggerWake();
     }
   };
   recog.onend = () => {
@@ -1530,7 +1532,7 @@ async function start() {
     ws = new WebSocket(CONFIG.url);
     ws.binaryType = "arraybuffer";
     ws.onopen = () => {
-      const p = PERSONAS[personaId] || PERSONAS.ultron;
+      const p = PERSONAS[personaId] || PERSONAS.assistant;
       send({
         type: "session.update",
         session: {
@@ -1617,7 +1619,7 @@ clearBtn.addEventListener("click", () => {
 visBtn.addEventListener("click", () => {
   visualMode = visualMode === "eye" ? "orb" : "eye";
 visBtn.textContent = "View: " + (visualMode === "eye" ? "Eye" : "Reactor");
-  try { localStorage.setItem("ultron.visual", visualMode); } catch (e) {}
+  try { localStorage.setItem("voiceagent.visual", visualMode); } catch (e) {}
   if (A) A.animate(statusEl, { scale: [1, 1.1, 1] }, { duration: 520, ease: "out(3)" });
 });
 
@@ -1634,7 +1636,7 @@ wakeBtn.addEventListener("click", () => {
     gateOpen = false;
     wakeActive = false;
     startWake();
-    hintEl.textContent = "Wake word armed — say \"Ultron\".";
+    hintEl.textContent = "Wake word armed. Say \"Hey agent\".";
   } else {
     stopWake();
     gateOpen = true;
@@ -1660,12 +1662,12 @@ window.addEventListener("keyup", (e) => {
 });
 
 function applyPersona(greet) {
-  const p = PERSONAS[personaId] || PERSONAS.ultron;
+  const p = PERSONAS[personaId] || PERSONAS.assistant;
   personaBtn.textContent = "Persona: " + p.label;
   const logo = document.querySelector(".logo");
   if (logo) logo.textContent = p.label;
   hud.offset = p.hue;
-  try { localStorage.setItem("ultron.persona", personaId); } catch (e) {}
+  try { localStorage.setItem("voiceagent.persona", personaId); } catch (e) {}
   if (ws && ws.readyState === WebSocket.OPEN) {
     send({
       type: "session.update",

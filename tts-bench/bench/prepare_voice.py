@@ -4,7 +4,7 @@ Splits a monologue at its longest silences, trims and peak-normalizes each
 segment, writes 44.1k and 16k mono versions plus a primary 5-10s clip.
 
 Usage:
-    python prepare_voice.py <input.wav> --name ultron --segments 4
+    python prepare_voice.py <input.wav> --name custom --segments 4
 """
 
 import argparse

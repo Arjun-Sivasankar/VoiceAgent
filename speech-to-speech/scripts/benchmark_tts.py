@@ -12,6 +12,7 @@ Usage:
 import argparse
 import json
 import logging
+import os
 import time
 from queue import Queue
 from threading import Event
@@ -131,10 +132,17 @@ def benchmark_handler(
             )
         elif handler_name == "qwen3":
             from speech_to_speech.TTS.qwen3_tts_handler import Qwen3TTSHandler
+            # VoiceAgent: no reference clip ships with this repository; supply your own.
+            ref_audio = os.environ.get("QWEN3_REF_AUDIO")
+            if not ref_audio:
+                raise SystemExit(
+                    "Set QWEN3_REF_AUDIO to a reference recording you have the speaker's consent to use "
+                    "(the Base model needs one for voice cloning)."
+                )
             setup_kwargs = {
                 "device": "cuda",
                 "model_name": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-                "ref_audio": "TTS/ref_audio.wav",
+                "ref_audio": ref_audio,
                 **setup_kwargs,
             }
             handler = Qwen3TTSHandler(

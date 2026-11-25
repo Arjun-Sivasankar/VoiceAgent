@@ -5,7 +5,7 @@ generated WAV, using SpeechBrain ECAPA-VOXCELEB. Run with the tool venv
 (tools\\supertonic3-voice-clone\\.venv) which has speechbrain.
 
 Usage:
-    python eval_similarity.py --reference <ref.wav> --dirs st3_ultron st3_M1
+    python eval_similarity.py --reference <ref.wav> --dirs st3_custom st3_M1
 """
 
 import argparse
